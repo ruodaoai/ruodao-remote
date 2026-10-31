@@ -1,0 +1,102 @@
+{
+  "name": "ruodao-remote",
+  "productName": "若道远程",
+  "version": "0.1.0",
+  "private": true,
+  "description": "若道远程 · 只需远控码和密钥的桌面远程控制客户端",
+  "author": "Ruodao",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "npm run build:electron && npm run build:server && concurrently -k \"vite\" \"npm run dev:app\"",
+    "dev:app": "wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:renderer": "vite build",
+    "build:server": "node scripts/build-server.mjs",
+    "build": "node ../scripts/check-version.mjs && npm run typecheck && npm run build:electron && npm run build:renderer && npm run build:server",
+    "start": "electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs",
+    "dist:win": "npm run build && electron-builder --win",
+    "icon": "electron scripts/make-icon.cjs"
+  },
+  "dependencies": {
+    "koffi": "^3.3.0",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.7",
+    "@types/ssh2": "^1.15.6",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^44.2.0",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2",
+    "vitest": "^3.2.4",
+    "wait-on": "^9.0.3",
+    "ws": "^8.21.3"
+  },
+  "build": {
+    "appId": "com.ruodao.remote",
+    "productName": "若道远程",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/server/server.cjs",
+        "to": "server/server.cjs"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/koffi/**/*",
+      "node_modules/@koromix/**/*"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "icon": "build/icon.ico",
+      "executableName": "RuodaoRemote",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "若道远程",
+      "artifactName": "RuodaoRemote-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "RuodaoRemote-Portable-${version}.${ext}"
+    }
+  }
+}

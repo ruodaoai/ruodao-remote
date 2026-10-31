@@ -1,0 +1,36 @@
+# 依赖与构建产物
+node_modules/
+dist/
+dist-electron/
+release/
+client/out-*/
+client/release-build/
+client/resources/server/server.cjs
+
+# 测试与截图临时目录
+.smoke/
+.smoke-packaged/
+client/.smoke/
+client/.smoke-packaged/
+client/.shots-profile/
+client/.manifest-smoke/
+.diag/
+server/data/
+server/.smoke-update/
+
+# 本地配置与密钥
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.local
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 内部工作记录与发布产物
+.workbuddy/
+release-assets/
+packaging/server/stage/

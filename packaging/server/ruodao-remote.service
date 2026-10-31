@@ -1,0 +1,23 @@
+[Unit]
+Description=Ruodao Remote signaling server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ruodao
+Group=ruodao
+WorkingDirectory=/opt/ruodao
+EnvironmentFile=/etc/ruodao-remote.env
+ExecStart=/usr/bin/node /opt/ruodao/server.cjs
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+ReadWritePaths=/var/lib/ruodao
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
