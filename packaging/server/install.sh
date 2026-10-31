@@ -43,7 +43,7 @@ if [[ -n "${ADMIN_PASSWORD}" ]]; then
 fi
 
 [[ "${PORT}" =~ ^[0-9]+$ ]] && [[ "${PORT}" -ge 1 && "${PORT}" -le 65535 ]] || fail "PORT 不是有效端口。"
-[[ "${HOST}" =~ ^[A-Za-z0-9.:\[\]-]+$ ]] || fail "HOST 格式不正确。"
+[[ "${HOST}" =~ ^[A-Za-z0-9.:%_-]+$ ]] || fail "HOST 格式不正确。"
 [[ "${PUBLIC_URL}" != *" "* ]] || fail "PUBLIC_URL 不能包含空格。"
 SERVER_NAME="${SERVER_NAME//\"/}"
 [[ "${SERVER_NAME}" != *$'\n'* ]] || fail "SERVER_NAME 不能包含换行。"
