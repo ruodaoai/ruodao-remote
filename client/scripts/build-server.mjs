@@ -30,6 +30,9 @@ await build({
   target: "node20",
   logLevel: "info",
   legalComments: "none",
+  // 服务端源码位于 ../server，依赖从客户端的 node_modules 解析，
+  // 避免单独构建客户端时因为缺少 server/node_modules 而找不到 ws。
+  nodePaths: [path.resolve(root, "node_modules")],
   external: ["bufferutil", "utf-8-validate"],
   define: {
     __RUODAO_SERVER_VERSION__: JSON.stringify(version),
