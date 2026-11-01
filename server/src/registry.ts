@@ -9,6 +9,7 @@ import type {
   PeerInfo,
   Platform,
   RejectReason,
+  ServerLimitsInfo,
   ServerMessage,
   ServerStatsInfo,
   SessionDangerEvent,
@@ -19,7 +20,15 @@ import type {
 import { dangerActionLabel, encodeMessage, parseClientMessage } from "./protocol";
 import { generateRemoteCode, RateLimiter, sanitizeName, timingSafeEqualHex } from "./security";
 import { buildIceServers, parseIceEnv, type IceOptions } from "./ice";
-import { StateStore, type DeviceRecord, type InviteRecord, normalizeInviteCode } from "./store";
+import {
+  StateStore,
+  type AccessBlockRecord,
+  type CooldownRecord,
+  type DeviceRecord,
+  type InviteRecord,
+  type ServerPolicy,
+  normalizeInviteCode,
+} from "./store";
 
 export interface SocketLike {
   send(data: string): void;
@@ -84,6 +93,8 @@ interface Session {
   controllerName: string;
   controllerPlatform: Platform;
   createdAt: number;
+  endsAt: number | null;
+  limitTimer: NodeJS.Timeout | null;
   telemetry: SessionTelemetry | null;
   dangerEvents: SessionDangerEvent[];
 }
@@ -114,6 +125,7 @@ export interface SessionSnapshot {
   id: string;
   code: string;
   createdAt: number;
+  endsAt: number | null;
   durationMs: number;
   telemetry: SessionTelemetry | null;
   dangerEvents: SessionDangerEvent[];
@@ -295,11 +307,20 @@ export class Registry {
     onlineDevices: number;
     publishedHosts: number;
     pendingRequests: number;
+    sessionKbps: number;
+    maxSessions: number;
+    remainingSlots: number | null;
+    activeCooldowns: number;
   } {
     const devices = new Set<string>();
     for (const peer of this.peers.values()) {
       if (peer.deviceId) devices.add(peer.deviceId);
     }
+    let sessionKbps = 0;
+    for (const session of this.sessions.values()) {
+      if (session.telemetry) sessionKbps += Math.max(0, session.telemetry.kbps);
+    }
+    const maxSessions = this.store.policy.maxSessions;
     return {
       peers: this.peers.size,
       hosts: this.hostsByCode.size,
@@ -307,6 +328,10 @@ export class Registry {
       onlineDevices: devices.size,
       publishedHosts: [...this.hostsByCode.values()].filter((host) => host.published).length,
       pendingRequests: this.requests.size,
+      sessionKbps: Math.round(sessionKbps),
+      maxSessions,
+      remainingSlots: maxSessions > 0 ? Math.max(0, maxSessions - this.sessions.size) : null,
+      activeCooldowns: this.store.listCooldowns().length,
     };
   }
 
@@ -361,6 +386,7 @@ export class Registry {
       id: session.id,
       code: session.code,
       createdAt: session.createdAt,
+      endsAt: session.endsAt,
       durationMs: now - session.createdAt,
       telemetry: session.telemetry ? { ...session.telemetry } : null,
       dangerEvents: session.dangerEvents.map((event) => ({ ...event })),
@@ -442,6 +468,88 @@ export class Registry {
     return true;
   }
 
+  policy(): ServerPolicy {
+    return this.store.policy;
+  }
+
+  updatePolicy(patch: Partial<ServerPolicy>): ServerPolicy {
+    const policy = this.store.updatePolicy(patch);
+    this.log("policy.updated", { ...policy });
+    return policy;
+  }
+
+  limits(): ServerLimitsInfo {
+    const policy = this.store.policy;
+    return {
+      maxSessions: policy.maxSessions,
+      sessionLimitMinutes: policy.sessionLimitMinutes,
+      cooldownMinutes: policy.cooldownMinutes,
+    };
+  }
+
+  listAccessBlocks(): AccessBlockRecord[] {
+    return this.store.listBlocks();
+  }
+
+  addAccessBlock(input: {
+    kind: "device" | "ip";
+    value: string;
+    label?: string;
+    reason?: string;
+    /** null 表示永久拉黑，数字表示冻结分钟数 */
+    minutes: number | null;
+  }): AccessBlockRecord {
+    const durationMs =
+      input.minutes === null ? null : Math.max(1, Math.floor(input.minutes)) * 60_000;
+    const record = this.store.addBlock({
+      kind: input.kind,
+      value: input.value,
+      label: input.label,
+      reason: input.reason,
+      createdBy: "admin",
+      durationMs,
+    });
+    const permanent = record.expiresAt === null;
+    const message = permanent
+      ? "此设备已被服务器管理员拉黑，无法接入。"
+      : `此设备已被管理员冻结，约 ${Math.max(
+          1,
+          Math.ceil(((record.expiresAt ?? 0) - this.now()) / 60_000),
+        )} 分钟后可重新接入。`;
+    this.kickMatching(
+      (peer) =>
+        (record.kind === "device" && peer.deviceId === record.value) ||
+        (record.kind === "ip" && peer.ip.toLowerCase() === record.value),
+      permanent ? "blocked" : "frozen",
+      message,
+    );
+    this.log("access.blocked", {
+      kind: record.kind,
+      value: record.value,
+      permanent,
+      expiresAt: record.expiresAt,
+    });
+    return record;
+  }
+
+  removeAccessBlock(id: string): AccessBlockRecord | null {
+    const record = this.store.removeBlock(id);
+    if (record) {
+      this.log("access.unblocked", { kind: record.kind, value: record.value });
+    }
+    return record;
+  }
+
+  listCooldowns(): CooldownRecord[] {
+    return this.store.listCooldowns();
+  }
+
+  clearCooldown(key: string): boolean {
+    const cleared = this.store.clearCooldown(key);
+    if (cleared) this.log("cooldown.cleared", { key });
+    return cleared;
+  }
+
   broadcastServerStats(stats: ServerStatsInfo): void {
     for (const peer of this.peers.values()) {
       if (!peer.deviceId) continue;
@@ -496,6 +604,98 @@ export class Registry {
     });
   }
 
+  private findAccessBlock(deviceId: string | null, ip: string): AccessBlockRecord | null {
+    return this.store.findActiveBlock({ deviceId: deviceId ?? "", ip });
+  }
+
+  private blockMessage(record: AccessBlockRecord): string {
+    if (record.expiresAt === null) {
+      return "此设备已被服务器管理员拉黑，无法接入。";
+    }
+    const minutes = Math.max(1, Math.ceil((record.expiresAt - this.now()) / 60_000));
+    return `此设备已被管理员冻结，约 ${minutes} 分钟后可重新接入。`;
+  }
+
+  private cooldownFor(peer: Peer): CooldownRecord | null {
+    const keys: string[] = [];
+    if (peer.deviceId) keys.push(`device:${peer.deviceId}`);
+    keys.push(`ip:${peer.ip.toLowerCase()}`);
+    return this.store.findCooldown(keys);
+  }
+
+  private cooldownMessage(record: CooldownRecord): string {
+    const minutes = Math.max(1, Math.ceil((record.until - this.now()) / 60_000));
+    return `本次远控已达到时长上限，请在 ${minutes} 分钟后重试。`;
+  }
+
+  private capacityFull(): boolean {
+    const max = this.store.policy.maxSessions;
+    return max > 0 && this.sessions.size >= max;
+  }
+
+  private fullMessage(): string {
+    const max = this.store.policy.maxSessions;
+    return `服务器当前远控人数已达上限（${max} 人），请等待他人结束后再试。`;
+  }
+
+  private denyBlocked(
+    peer: Peer,
+    requestId: string,
+    record: AccessBlockRecord,
+  ): void {
+    const reason: ControlDenyReason =
+      record.expiresAt === null ? "device-blocked" : "device-frozen";
+    const message = this.blockMessage(record);
+    this.denyControlRequest(peer, requestId, reason, message);
+    this.store.audit(
+      "access.denied",
+      "system",
+      `${record.kind === "device" ? "设备" : "IP"} ${record.value}：${message}`,
+      peer.deviceId ?? undefined,
+    );
+    this.log("access.denied", {
+      deviceId: peer.deviceId,
+      ip: peer.ip,
+      kind: record.kind,
+      value: record.value,
+    });
+  }
+
+  private denyCooldown(peer: Peer, requestId: string, record: CooldownRecord): void {
+    const message = this.cooldownMessage(record);
+    this.denyControlRequest(peer, requestId, "cooldown", message);
+    this.store.audit(
+      "access.denied",
+      "system",
+      `冷却期内发起远控被拒绝：${message}`,
+      peer.deviceId ?? undefined,
+    );
+    this.log("access.cooldown-denied", { deviceId: peer.deviceId, until: record.until });
+  }
+
+  private denyIfRestricted(peer: Peer, requestId: string): boolean {
+    const block = this.findAccessBlock(peer.deviceId, peer.ip);
+    if (block) {
+      this.denyBlocked(peer, requestId, block);
+      return true;
+    }
+    const cooldown = this.cooldownFor(peer);
+    if (cooldown) {
+      this.denyCooldown(peer, requestId, cooldown);
+      return true;
+    }
+    if (this.capacityFull()) {
+      this.denyControlRequest(peer, requestId, "server-full", this.fullMessage());
+      this.log("access.capacity-denied", {
+        deviceId: peer.deviceId,
+        sessions: this.sessions.size,
+        maxSessions: this.store.policy.maxSessions,
+      });
+      return true;
+    }
+    return false;
+  }
+
   private hello(
     peer: Peer,
     message: Extract<ClientMessage, { type: "client.hello" }>,
@@ -506,6 +706,29 @@ export class Registry {
     }
     if (!this.helloLimiter.hit(peer.ip)) {
       this.rejectClient(peer, "invalid-hello", "握手过于频繁，请稍后再试。");
+      return;
+    }
+
+    const blocked = this.findAccessBlock(message.deviceId, peer.ip);
+    if (blocked) {
+      const messageText = this.blockMessage(blocked);
+      this.rejectClient(
+        peer,
+        blocked.expiresAt === null ? "blocked" : "frozen",
+        messageText,
+      );
+      this.store.audit(
+        "access.denied",
+        "system",
+        `${blocked.kind === "device" ? "设备" : "IP"} ${blocked.value}：${messageText}`,
+        message.deviceId,
+      );
+      this.log("access.login-denied", {
+        deviceId: message.deviceId,
+        ip: peer.ip,
+        kind: blocked.kind,
+        expiresAt: blocked.expiresAt,
+      });
       return;
     }
 
@@ -573,6 +796,7 @@ export class Registry {
       registrationMode: mode,
       serverName: this.store.settings.serverName,
       publicUrl: this.publicUrl,
+      limits: this.limits(),
     });
     if (device.status === "approved") {
       this.sendCatalog(peer);
@@ -594,6 +818,17 @@ export class Registry {
         this.sendError(peer, "device-unknown", "客户端记录不存在，请重新接入。");
       } else {
         this.reject(peer, "not-found", "客户端记录不存在，请重新接入。");
+      }
+      return false;
+    }
+    const block = this.findAccessBlock(peer.deviceId, peer.ip);
+    if (block) {
+      const frozen = block.expiresAt !== null;
+      const message = this.blockMessage(block);
+      if (role === "host") {
+        this.sendError(peer, frozen ? "device-frozen" : "device-blocked", message);
+      } else {
+        this.reject(peer, frozen ? "device-frozen" : "device-blocked", message);
       }
       return false;
     }
@@ -741,6 +976,7 @@ export class Registry {
       this.denyControlRequest(peer, "", "rate-limited", "申请过于频繁，请稍后再试。");
       return;
     }
+    if (this.denyIfRestricted(peer, "")) return;
     const host = this.hostsByDeviceId.get(hostDeviceId);
     if (!host || !host.published) {
       this.denyControlRequest(
@@ -840,6 +1076,11 @@ export class Registry {
       this.send(peer, { type: "host.control-closed", requestId, reason: "busy" });
       return;
     }
+    if (this.denyIfRestricted(request.peer, requestId)) {
+      this.removeControlRequest(request);
+      this.send(peer, { type: "host.control-closed", requestId, reason: "cancelled" });
+      return;
+    }
 
     const others = [...this.requests.values()].filter(
       (item) => item.host === host && item.id !== requestId,
@@ -914,6 +1155,15 @@ export class Registry {
       this.denyControlRequest(peer, approval.requestId, "token-expired", "远控授权已过期，请重新申请。");
       return;
     }
+    if (this.denyIfRestricted(peer, approval.requestId)) {
+      this.removeApprovalToken(approval);
+      this.send(approval.host.peer, {
+        type: "host.control-closed",
+        requestId: approval.requestId,
+        reason: "cancelled",
+      });
+      return;
+    }
     const host = approval.host;
     if (this.hostsByCode.get(host.code) !== host || !host.published) {
       this.removeApprovalToken(approval);
@@ -952,6 +1202,9 @@ export class Registry {
     controllerName: string,
     controllerPlatform: Platform,
   ): void {
+    const policy = this.store.policy;
+    const limitMs = policy.sessionLimitMinutes > 0 ? policy.sessionLimitMinutes * 60_000 : 0;
+    const createdAt = this.now();
     const session: Session = {
       id: randomUUID(),
       code: host.code,
@@ -959,10 +1212,18 @@ export class Registry {
       controller,
       controllerName: sanitizeName(controllerName, "Remote controller"),
       controllerPlatform,
-      createdAt: this.now(),
+      createdAt,
+      endsAt: limitMs > 0 ? createdAt + limitMs : null,
+      limitTimer: null,
       telemetry: null,
       dangerEvents: [],
     };
+    if (session.endsAt !== null) {
+      session.limitTimer = setTimeout(() => {
+        this.enforceSessionLimit(session.id);
+      }, Math.max(0, session.endsAt - this.now()));
+      session.limitTimer.unref();
+    }
     this.sessions.set(session.id, session);
     host.session = session;
     host.peer.sessionId = session.id;
@@ -981,14 +1242,51 @@ export class Registry {
         ip: controller.ip,
       },
       iceServers: buildIceServers(this.ice, `host-${host.code}`),
+      endsAt: session.endsAt,
     });
     this.send(controller, {
       type: "controller.paired",
       sessionId: session.id,
       host: this.peerInfo(host),
       iceServers: buildIceServers(this.ice, `controller-${controller.id}`),
+      endsAt: session.endsAt,
     });
-    this.log("session.opened", { sessionId: session.id, hostId: host.peer.id });
+    this.log("session.opened", {
+      sessionId: session.id,
+      hostId: host.peer.id,
+      endsAt: session.endsAt,
+    });
+  }
+
+  private enforceSessionLimit(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+    const policy = this.store.policy;
+    let cooldownUntil: number | null = null;
+    if (policy.cooldownMinutes > 0) {
+      cooldownUntil = this.now() + policy.cooldownMinutes * 60_000;
+      this.store.startCooldown({
+        deviceId: session.controller.deviceId,
+        ip: session.controller.ip,
+        label: session.controllerName,
+        until: cooldownUntil,
+        reason: "time-limit",
+      });
+    }
+    this.store.audit(
+      "session.time-limit",
+      "system",
+      `会话达到 ${policy.sessionLimitMinutes} 分钟上限${
+        cooldownUntil ? `，该用户需等待 ${policy.cooldownMinutes} 分钟` : ""
+      }`,
+      session.controller.deviceId ?? undefined,
+    );
+    this.log("session.time-limit", {
+      sessionId,
+      deviceId: session.controller.deviceId,
+      cooldownUntil,
+    });
+    this.closeSession(session, "time-limit", [], { cooldownUntil });
   }
 
   private controlRequestInfo(request: ControlRequest): HostControlRequestInfo {
@@ -1157,6 +1455,20 @@ export class Registry {
       this.reject(peer, "rate-limited", "Too many lookup attempts. Try again later.");
       return;
     }
+    const block = this.findAccessBlock(peer.deviceId, peer.ip);
+    if (block) {
+      this.reject(
+        peer,
+        block.expiresAt === null ? "device-blocked" : "device-frozen",
+        this.blockMessage(block),
+      );
+      return;
+    }
+    const cooldown = this.cooldownFor(peer);
+    if (cooldown) {
+      this.reject(peer, "cooldown", this.cooldownMessage(cooldown));
+      return;
+    }
     const host = this.hostsByCode.get(code);
     if (!host) {
       this.reject(peer, "not-found", "No device is online with this remote code.");
@@ -1189,6 +1501,41 @@ export class Registry {
     }
     if (!this.connectLimiter.hit(peer.ip) || !this.codeLimiter.hit(code)) {
       this.reject(peer, "rate-limited", "Too many attempts. Try again in a minute.");
+      return;
+    }
+    const block = this.findAccessBlock(peer.deviceId, peer.ip);
+    if (block) {
+      this.reject(
+        peer,
+        block.expiresAt === null ? "device-blocked" : "device-frozen",
+        this.blockMessage(block),
+      );
+      this.store.audit(
+        "access.denied",
+        "system",
+        `连接被拒绝：${this.blockMessage(block)}`,
+        peer.deviceId ?? undefined,
+      );
+      return;
+    }
+    const cooldown = this.cooldownFor(peer);
+    if (cooldown) {
+      this.reject(peer, "cooldown", this.cooldownMessage(cooldown));
+      this.store.audit(
+        "access.denied",
+        "system",
+        `冷却期内发起远控被拒绝：${this.cooldownMessage(cooldown)}`,
+        peer.deviceId ?? undefined,
+      );
+      return;
+    }
+    if (this.capacityFull()) {
+      this.reject(peer, "server-full", this.fullMessage());
+      this.log("access.capacity-denied", {
+        deviceId: peer.deviceId,
+        sessions: this.sessions.size,
+        maxSessions: this.store.policy.maxSessions,
+      });
       return;
     }
     const host = this.hostsByCode.get(code);
@@ -1254,8 +1601,17 @@ export class Registry {
     this.log("host.removed", { hostId: host.peer.id });
   }
 
-  private closeSession(session: Session, reason: string, exclude: Peer[] = []): void {
+  private closeSession(
+    session: Session,
+    reason: string,
+    exclude: Peer[] = [],
+    options: { cooldownUntil?: number | null } = {},
+  ): void {
     if (!this.sessions.has(session.id)) return;
+    if (session.limitTimer) {
+      clearTimeout(session.limitTimer);
+      session.limitTimer = null;
+    }
     const endedAt = this.now();
     this.sessions.delete(session.id);
     if (session.host.session?.id === session.id) {
@@ -1295,7 +1651,11 @@ export class Registry {
     });
     for (const peer of [session.host.peer, session.controller]) {
       if (exclude.some((item) => item.id === peer.id)) continue;
-      this.send(peer, { type: "peer.left", reason });
+      this.send(peer, {
+        type: "peer.left",
+        reason,
+        ...(options.cooldownUntil ? { cooldownUntil: options.cooldownUntil } : {}),
+      });
     }
     if (this.hostsByPeerId.has(session.host.peer.id)) {
       this.broadcastCatalog();
@@ -1307,7 +1667,19 @@ export class Registry {
     reason: ClientRejectReason,
     message: string,
   ): boolean {
-    const targets = [...this.peers.values()].filter((peer) => peer.deviceId === deviceId);
+    return this.kickMatching(
+      (peer) => peer.deviceId === deviceId,
+      reason,
+      message,
+    );
+  }
+
+  private kickMatching(
+    predicate: (peer: Peer) => boolean,
+    reason: ClientRejectReason,
+    message: string,
+  ): boolean {
+    const targets = [...this.peers.values()].filter(predicate);
     if (targets.length === 0) return false;
     for (const peer of targets) {
       const host = this.hostsByPeerId.get(peer.id);

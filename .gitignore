@@ -12,8 +12,10 @@ client/resources/server/server.cjs
 .smoke-packaged/
 client/.smoke/
 client/.smoke-packaged/
+client/.shared-ui/
 client/.shots-profile/
 client/.manifest-smoke/
+client/.docs-shots/
 .diag/
 server/data/
 server/.smoke-update/
@@ -34,3 +36,7 @@ Thumbs.db
 .workbuddy/
 release-assets/
 packaging/server/stage/
+
+# 临时发布脚本
+.publish.mjs
+.publish-message.txt

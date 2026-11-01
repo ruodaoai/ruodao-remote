@@ -38,6 +38,7 @@ interface ControlPanelProps {
   stream: MediaStream | null;
   stats: SessionStats | null;
   serverStats: ServerStats | null;
+  sessionEndsAt?: number | null;
   channelReady: boolean;
   inputPaused: boolean;
   clipboardAllowed: boolean;
@@ -318,6 +319,7 @@ export function ControlPanel({
   stream,
   stats,
   serverStats,
+  sessionEndsAt,
   channelReady,
   inputPaused,
   clipboardAllowed,
@@ -368,6 +370,7 @@ export function ControlPanel({
           hostName={hostName}
           stats={stats}
           serverStats={serverStats}
+          endsAt={sessionEndsAt}
           channelReady={channelReady}
           connected={phase === "connected"}
           inputPaused={inputPaused}

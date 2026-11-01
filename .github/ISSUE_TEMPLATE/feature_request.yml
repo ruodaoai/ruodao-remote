@@ -1,0 +1,44 @@
+name: 功能建议 / Feature request
+description: 想要的能力或改进点 / A capability or improvement you want
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及范围 / Area
+      options:
+        - 客户端界面 / Client UI
+        - 远控链路 / Session pipeline
+        - 共享服务器 / Shared servers
+        - 服务端与管理后台 / Server & admin console
+        - 更新与发布 / Updates and releases
+        - 文档 / Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的问题 / The problem
+      description: 描述场景，而不是直接描述实现方式 / Describe the situation, not just the implementation
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的方案 / Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案 / Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 我能参与的部分 / What I can help with
+      options:
+        - label: 我可以提交 PR / I can open a pull request
+        - label: 我可以帮忙测试 / I can help test
+        - label: 我可以补充文档或翻译 / I can help with docs or translation

@@ -63,6 +63,90 @@ export interface ServerSettings {
   serverName: string;
 }
 
+export interface ServerPolicy {
+  /** 0 表示不限制并发远控人数 */
+  maxSessions: number;
+  /** 单次远控时长上限（分钟），0 表示不限制 */
+  sessionLimitMinutes: number;
+  /** 达到时长上限后需要等待的冷却时间（分钟） */
+  cooldownMinutes: number;
+  /** 冻结操作的默认时长（分钟） */
+  freezeMinutes: number;
+}
+
+export const DEFAULT_SERVER_POLICY: ServerPolicy = {
+  maxSessions: 0,
+  sessionLimitMinutes: 0,
+  cooldownMinutes: 5,
+  freezeMinutes: 10,
+};
+
+export function normalizeServerPolicy(
+  input: Partial<ServerPolicy> | undefined,
+  fallback: ServerPolicy = DEFAULT_SERVER_POLICY,
+): ServerPolicy {
+  const read = (value: unknown, min: number, max: number, base: number): number => {
+    if (typeof value !== "number" || !Number.isFinite(value)) return base;
+    return Math.max(min, Math.min(max, Math.floor(value)));
+  };
+  return {
+    maxSessions: read(input?.maxSessions, 0, 10000, fallback.maxSessions),
+    sessionLimitMinutes: read(input?.sessionLimitMinutes, 0, 1440, fallback.sessionLimitMinutes),
+    cooldownMinutes: read(input?.cooldownMinutes, 0, 1440, fallback.cooldownMinutes),
+    freezeMinutes: read(input?.freezeMinutes, 1, 10080, fallback.freezeMinutes),
+  };
+}
+
+export type AccessBlockKind = "device" | "ip";
+
+export interface AccessBlockRecord {
+  id: string;
+  kind: AccessBlockKind;
+  /** 设备 ID 或 IP 地址 */
+  value: string;
+  label: string;
+  reason: string;
+  createdAt: number;
+  createdBy: string;
+  /** null 表示永久拉黑，否则为冻结到期时间 */
+  expiresAt: number | null;
+}
+
+export interface CooldownRecord {
+  /** `device:<id>` 或 `ip:<ip>` */
+  key: string;
+  label: string;
+  until: number;
+  reason: string;
+}
+
+export function accessBlockKey(kind: AccessBlockKind, value: string): string {
+  return `${kind}:${value}`;
+}
+
+function normalizeBlockValue(kind: AccessBlockKind, value: string): string {
+  const trimmed = value.trim();
+  return kind === "device" ? trimmed.slice(0, 64) : trimmed.toLowerCase().slice(0, 64);
+}
+
+function normalizeBlockRecord(input: Partial<AccessBlockRecord>): AccessBlockRecord | null {
+  if (input.kind !== "device" && input.kind !== "ip") return null;
+  if (typeof input.value !== "string" || !input.value.trim()) return null;
+  return {
+    id: typeof input.id === "string" && input.id ? input.id : randomUUID(),
+    kind: input.kind,
+    value: normalizeBlockValue(input.kind, input.value),
+    label: typeof input.label === "string" ? input.label.slice(0, 64) : "",
+    reason: typeof input.reason === "string" ? input.reason.slice(0, 120) : "",
+    createdAt: Number(input.createdAt) || Date.now(),
+    createdBy: typeof input.createdBy === "string" ? input.createdBy.slice(0, 40) : "admin",
+    expiresAt:
+      typeof input.expiresAt === "number" && Number.isFinite(input.expiresAt)
+        ? input.expiresAt
+        : null,
+  };
+}
+
 interface StateFile {
   version: 1;
   devices: DeviceRecord[];
@@ -70,6 +154,9 @@ interface StateFile {
   audit: AuditRecord[];
   sessions: SessionLogRecord[];
   settings: ServerSettings;
+  policy: ServerPolicy;
+  blocks: AccessBlockRecord[];
+  cooldowns: CooldownRecord[];
 }
 
 export interface StoreOptions {
@@ -78,6 +165,7 @@ export interface StoreOptions {
   log?: (event: string, meta?: Record<string, unknown>) => void;
   registrationMode?: RegistrationMode;
   serverName?: string;
+  policy?: Partial<ServerPolicy>;
 }
 
 const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -130,6 +218,130 @@ export class StateStore {
     if (patch.serverName) this.data.settings.serverName = patch.serverName.slice(0, 64);
     this.persist();
     return this.settings;
+  }
+
+  get policy(): ServerPolicy {
+    return { ...this.data.policy };
+  }
+
+  updatePolicy(patch: Partial<ServerPolicy>): ServerPolicy {
+    this.data.policy = normalizeServerPolicy(
+      { ...this.data.policy, ...patch },
+      this.data.policy,
+    );
+    this.persist();
+    return this.policy;
+  }
+
+  listBlocks(): AccessBlockRecord[] {
+    return this.data.blocks
+      .map((block) => ({ ...block }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  findActiveBlock(
+    matches: { deviceId: string; ip: string },
+    at = this.now(),
+  ): AccessBlockRecord | null {
+    for (const block of this.data.blocks) {
+      if (block.expiresAt !== null && block.expiresAt <= at) continue;
+      if (block.kind === "device" && block.value === matches.deviceId) return { ...block };
+      if (block.kind === "ip" && block.value === matches.ip.toLowerCase()) return { ...block };
+    }
+    return null;
+  }
+
+  addBlock(input: {
+    kind: AccessBlockKind;
+    value: string;
+    label?: string;
+    reason?: string;
+    createdBy?: string;
+    /** 冻结时长（毫秒），null 表示永久拉黑 */
+    durationMs?: number | null;
+  }): AccessBlockRecord {
+    const now = this.now();
+    const value = normalizeBlockValue(input.kind, input.value);
+    this.data.blocks = this.data.blocks.filter(
+      (block) => !(block.kind === input.kind && block.value === value),
+    );
+    const record: AccessBlockRecord = {
+      id: randomUUID(),
+      kind: input.kind,
+      value,
+      label: (input.label ?? "").trim().slice(0, 64) || value,
+      reason: (input.reason ?? "").trim().slice(0, 120),
+      createdAt: now,
+      createdBy: (input.createdBy ?? "admin").slice(0, 40),
+      expiresAt:
+        typeof input.durationMs === "number" && input.durationMs > 0
+          ? now + input.durationMs
+          : null,
+    };
+    this.data.blocks.push(record);
+    if (this.data.blocks.length > 500) {
+      this.data.blocks = this.data.blocks.slice(-500);
+    }
+    this.persist();
+    return { ...record };
+  }
+
+  removeBlock(id: string): AccessBlockRecord | null {
+    const found = this.data.blocks.find((block) => block.id === id);
+    if (!found) return null;
+    this.data.blocks = this.data.blocks.filter((block) => block.id !== id);
+    this.persist();
+    return { ...found };
+  }
+
+  findCooldown(keys: string[], at = this.now()): CooldownRecord | null {
+    for (const key of keys) {
+      const found = this.data.cooldowns.find((item) => item.key === key && item.until > at);
+      if (found) return { ...found };
+    }
+    return null;
+  }
+
+  listCooldowns(at = this.now()): CooldownRecord[] {
+    return this.data.cooldowns
+      .filter((item) => item.until > at)
+      .map((item) => ({ ...item }))
+      .sort((a, b) => a.until - b.until);
+  }
+
+  startCooldown(input: {
+    deviceId?: string | null;
+    ip?: string | null;
+    label?: string;
+    until: number;
+    reason?: string;
+  }): CooldownRecord[] {
+    const now = this.now();
+    const records: CooldownRecord[] = [];
+    this.data.cooldowns = this.data.cooldowns.filter((item) => item.until > now);
+    const push = (key: string) => {
+      const record: CooldownRecord = {
+        key,
+        label: (input.label ?? key).slice(0, 64),
+        until: input.until,
+        reason: (input.reason ?? "").slice(0, 120),
+      };
+      this.data.cooldowns = this.data.cooldowns.filter((item) => item.key !== key);
+      this.data.cooldowns.push(record);
+      records.push({ ...record });
+    };
+    if (input.deviceId) push(`device:${input.deviceId}`);
+    if (input.ip) push(`ip:${input.ip.toLowerCase()}`);
+    if (records.length > 0) this.persist();
+    return records;
+  }
+
+  clearCooldown(key: string): boolean {
+    const before = this.data.cooldowns.length;
+    this.data.cooldowns = this.data.cooldowns.filter((item) => item.key !== key);
+    if (this.data.cooldowns.length === before) return false;
+    this.persist();
+    return true;
   }
 
   listDevices(): DeviceRecord[] {
@@ -362,6 +574,9 @@ export class StateStore {
         registrationMode: options.registrationMode ?? "invite",
         serverName: options.serverName?.trim().slice(0, 64) || "若道远程服务",
       },
+      policy: normalizeServerPolicy(options.policy),
+      blocks: [],
+      cooldowns: [],
     };
     if (!this.filePath || !existsSync(this.filePath)) return fallback;
     try {
@@ -401,6 +616,29 @@ export class StateStore {
             }))
         : [];
       const mode = raw.settings?.registrationMode;
+      const blocks: AccessBlockRecord[] = Array.isArray(raw.blocks)
+        ? raw.blocks
+            .map((block) => normalizeBlockRecord(block as Partial<AccessBlockRecord>))
+            .filter((block): block is AccessBlockRecord => block !== null)
+            .slice(-500)
+        : [];
+      const now = this.now();
+      const cooldowns: CooldownRecord[] = Array.isArray(raw.cooldowns)
+        ? raw.cooldowns
+            .filter(
+              (item) =>
+                item &&
+                typeof item.key === "string" &&
+                typeof item.until === "number" &&
+                item.until > now,
+            )
+            .map((item) => ({
+              key: String(item.key).slice(0, 80),
+              label: String(item.label ?? "").slice(0, 64),
+              until: Number(item.until),
+              reason: String(item.reason ?? "").slice(0, 120),
+            }))
+        : [];
       return {
         version: 1,
         devices: devices.map((device) => ({
@@ -438,6 +676,9 @@ export class StateStore {
               ? raw.settings.serverName.trim().slice(0, 64)
               : fallback.settings.serverName,
         },
+        policy: normalizeServerPolicy(raw.policy, fallback.policy),
+        blocks,
+        cooldowns,
       };
     } catch (error) {
       const backup = `${this.filePath}.corrupt-${Date.now()}`;

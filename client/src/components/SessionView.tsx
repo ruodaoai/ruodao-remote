@@ -49,6 +49,7 @@ interface SessionViewProps {
   hostName: PeerProfile | null;
   stats: SessionStats | null;
   serverStats: ServerStats | null;
+  endsAt?: number | null;
   channelReady: boolean;
   connected: boolean;
   inputPaused: boolean;
@@ -78,6 +79,7 @@ export function SessionView({
   hostName,
   stats,
   serverStats,
+  endsAt,
   channelReady,
   connected,
   inputPaused,
@@ -419,6 +421,11 @@ export function SessionView({
             </span>
           )}
           {connected && <span className="stat-chip timer">{formatDuration(elapsed)}</span>}
+          {endsAt && (
+            <span className="stat-chip warn" title="服务器限制的单次远控时长，到时自动结束">
+              剩余 {formatDuration(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))}
+            </span>
+          )}
         </div>
 
         <div className="session-tools">

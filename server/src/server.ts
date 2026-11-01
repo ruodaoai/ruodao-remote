@@ -1,4 +1,5 @@
 import { createServer as createHttpServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { isIP } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
 import { Registry, type Peer } from "./registry";
 import { parseIceEnv, type IceOptions } from "./ice";
@@ -8,6 +9,7 @@ import {
   normalizeInviteCode,
   type InviteRecord,
   type RegistrationMode,
+  type ServerPolicy,
 } from "./store";
 import { ADMIN_PAGE_HTML } from "./admin-page";
 import {
@@ -44,6 +46,7 @@ export interface RemoteServerOptions {
   adminLoginGuard?: LoginGuardOptions;
   registrationMode?: RegistrationMode;
   serverName?: string;
+  policy?: Partial<ServerPolicy>;
   publicUrl?: string;
   controlRequestTtlMs?: number;
   controlTokenTtlMs?: number;
@@ -242,6 +245,13 @@ function readString(value: unknown, maxLength: number): string | null {
   return trimmed;
 }
 
+function readInt(value: unknown, min: number, max: number): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const number = Math.floor(value);
+  if (number < min || number > max) return null;
+  return number;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
   return value as Record<string, unknown>;
@@ -266,6 +276,7 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
       log,
       registrationMode: options.registrationMode,
       serverName: options.serverName,
+      policy: options.policy,
     });
   const publicUrl = (options.publicUrl ?? "").replace(/\/+$/, "");
   const adminPath = normalizeAdminPath(options.adminPath);
@@ -322,19 +333,30 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
     log,
     onSample: (sample) => {
       const counts = registry.stats();
+      const policy = registry.policy();
+      const activeBlocks = store
+        .listBlocks()
+        .filter((block) => block.expiresAt === null || block.expiresAt > sample.at).length;
       const stats: ServerStatsInfo = {
         at: sample.at,
         bandwidthInKbps: sample.bandwidthInKbps,
         bandwidthOutKbps: sample.bandwidthOutKbps,
         wsInKbps: sample.wsInKbps,
         wsOutKbps: sample.wsOutKbps,
+        sessionKbps: counts.sessionKbps,
         sessions: counts.sessions,
+        maxSessions: counts.maxSessions,
+        remainingSlots: counts.remainingSlots,
         peers: counts.peers,
         load1: sample.load1,
         cpuPct: sample.cpuPct,
         lagMs: sample.lagMs,
         memoryPct: sample.memoryPct,
         uptimeSeconds: sample.uptimeSeconds,
+        sessionLimitMinutes: policy.sessionLimitMinutes,
+        cooldownMinutes: policy.cooldownMinutes,
+        activeBlocks,
+        activeCooldowns: counts.activeCooldowns,
       };
       registry.broadcastServerStats(stats);
     },
@@ -513,6 +535,7 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
           version: VERSION,
           publicUrl,
           registrationMode: store.settings.registrationMode,
+          policy: store.policy,
         },
       });
       return;
@@ -523,6 +546,7 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
       const now = Date.now();
       const devices = snapshot.devices;
       const invites = store.listInvites();
+      const blocks = store.listBlocks();
       adminJson(response, 200, {
         ok: true,
         server: {
@@ -533,6 +557,7 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
           uptimeSeconds: Math.floor((now - startedAt) / 1000),
           startedAt,
         },
+        policy: store.policy,
         stats: {
           ...registry.stats(),
           approvedDevices: devices.filter((item) => item.status === "approved").length,
@@ -540,7 +565,12 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
           blockedDevices: devices.filter((item) => item.status === "blocked").length,
           activeSessions: snapshot.sessions.length,
           activeInvites: invites.filter((item) => inviteActive(item, now)).length,
+          activeBlocks: blocks.filter(
+            (block) => block.expiresAt === null || block.expiresAt > now,
+          ).length,
         },
+        blocks,
+        cooldowns: store.listCooldowns(now),
         network: telemetry?.snapshot() ?? null,
         security: guard.stats(),
       });
@@ -710,11 +740,132 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
       return;
     }
 
+    if (pathname === "/api/admin/blocks") {
+      if (method === "GET") {
+        adminJson(response, 200, {
+          ok: true,
+          blocks: store.listBlocks(),
+          cooldowns: store.listCooldowns(),
+          policy: store.policy,
+        });
+        return;
+      }
+      if (method === "POST") {
+        let body: Record<string, unknown>;
+        try {
+          body = asRecord(await readJsonBody(request));
+        } catch (error) {
+          adminJson(response, 400, {
+            error: error instanceof Error ? error.message : "invalid-json",
+          });
+          return;
+        }
+        const kind = body.kind;
+        if (kind !== "device" && kind !== "ip") {
+          adminJson(response, 400, {
+            error: "invalid-kind",
+            message: "kind 必须是 device 或 ip。",
+          });
+          return;
+        }
+        const value = readString(body.value, 64);
+        if (!value) {
+          adminJson(response, 400, { error: "invalid-value", message: "请填写设备 ID 或 IP。" });
+          return;
+        }
+        if (kind === "device" && !/^[A-Za-z0-9_-]{8,64}$/.test(value)) {
+          adminJson(response, 400, { error: "invalid-device-id" });
+          return;
+        }
+        if (kind === "ip" && isIP(value) === 0) {
+          adminJson(response, 400, { error: "invalid-ip", message: "IP 地址格式不正确。" });
+          return;
+        }
+        const permanent = body.permanent === true;
+        const minutesRaw = Number(body.minutes ?? store.policy.freezeMinutes);
+        if (
+          !permanent &&
+          (!Number.isFinite(minutesRaw) || minutesRaw < 1 || minutesRaw > 10080)
+        ) {
+          adminJson(response, 400, {
+            error: "invalid-duration",
+            message: "冻结时长需要在 1-10080 分钟之间。",
+          });
+          return;
+        }
+        const minutes = Math.floor(minutesRaw);
+        const label = readString(body.label, 64) ?? value;
+        const reason =
+          readString(body.reason, 120) ??
+          (permanent ? "管理员拉黑" : `管理员冻结 ${minutes} 分钟`);
+        const record = registry.addAccessBlock({
+          kind,
+          value,
+          label,
+          reason,
+          minutes: permanent ? null : minutes,
+        });
+        store.audit(
+          permanent ? "access.block" : "access.freeze",
+          "admin",
+          `${kind === "device" ? "设备" : "IP"} ${record.value}：${reason}${
+            permanent ? "（永久拉黑）" : `（${minutes} 分钟）`
+          }`,
+          kind === "device" ? record.value : undefined,
+        );
+        securityLog.write(permanent ? "security.access-block" : "security.access-freeze", value, {
+          kind,
+          minutes: permanent ? null : minutes,
+          reason,
+        });
+        adminJson(response, 201, { ok: true, block: record });
+        return;
+      }
+      adminJson(response, 405, { error: "method-not-allowed" });
+      return;
+    }
+
+    const blockMatch = pathname.match(/^\/api\/admin\/blocks\/([^/]+)$/);
+    if (blockMatch && method === "DELETE") {
+      const record = registry.removeAccessBlock(decodeURIComponent(blockMatch[1]));
+      if (!record) {
+        adminJson(response, 404, { error: "not-found" });
+        return;
+      }
+      store.audit(
+        "access.unblock",
+        "admin",
+        `解除${record.kind === "device" ? "设备" : "IP"} ${record.value} 的限制`,
+        record.kind === "device" ? record.value : undefined,
+      );
+      securityLog.write("security.access-unblock", record.value, { kind: record.kind });
+      adminJson(response, 200, { ok: true, block: record });
+      return;
+    }
+
+    const cooldownMatch = pathname.match(/^\/api\/admin\/cooldowns\/(.+)$/);
+    if (cooldownMatch && method === "DELETE") {
+      const key = decodeURIComponent(cooldownMatch[1]);
+      if (!/^(device|ip):.{1,70}$/.test(key)) {
+        adminJson(response, 400, { error: "invalid-key" });
+        return;
+      }
+      const cleared = registry.clearCooldown(key);
+      if (!cleared) {
+        adminJson(response, 404, { error: "not-found" });
+        return;
+      }
+      store.audit("cooldown.clear", "admin", `解除冷却限制 ${key}`);
+      adminJson(response, 200, { ok: true });
+      return;
+    }
+
     if (pathname === "/api/admin/settings") {
       if (method === "GET") {
         adminJson(response, 200, {
           ok: true,
           settings: store.settings,
+          policy: store.policy,
           publicUrl,
           version: VERSION,
         });
@@ -747,13 +898,45 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
           }
           patch.serverName = name;
         }
+        const source = asRecord(body.policy);
+        const policyPatch: Partial<ServerPolicy> = {};
+        const limits: Array<{
+          key: keyof ServerPolicy;
+          min: number;
+          max: number;
+        }> = [
+          { key: "maxSessions", min: 0, max: 10000 },
+          { key: "sessionLimitMinutes", min: 0, max: 1440 },
+          { key: "cooldownMinutes", min: 0, max: 1440 },
+          { key: "freezeMinutes", min: 1, max: 10080 },
+        ];
+        for (const limit of limits) {
+          const raw = source[limit.key] !== undefined ? source[limit.key] : body[limit.key];
+          if (raw === undefined) continue;
+          const value = readInt(raw, limit.min, limit.max);
+          if (value === null) {
+            adminJson(response, 400, {
+              error: "invalid-policy",
+              message: `${limit.key} 需要在 ${limit.min}-${limit.max} 之间。`,
+            });
+            return;
+          }
+          policyPatch[limit.key] = value;
+        }
         const settings = store.updateSettings(patch);
+        const policy = Object.keys(policyPatch).length
+          ? registry.updatePolicy(policyPatch)
+          : store.policy;
         store.audit(
           "settings.update",
           "admin",
-          `接入模式：${settings.registrationMode}；名称：${settings.serverName}`,
+          `接入模式：${settings.registrationMode}；名称：${settings.serverName}；最大远控人数：${
+            policy.maxSessions || "不限"
+          }；单次时长：${policy.sessionLimitMinutes || "不限"} 分钟；冷却：${
+            policy.cooldownMinutes
+          } 分钟；冻结默认：${policy.freezeMinutes} 分钟`,
         );
-        adminJson(response, 200, { ok: true, settings });
+        adminJson(response, 200, { ok: true, settings, policy });
         return;
       }
       adminJson(response, 405, { error: "method-not-allowed" });
@@ -908,13 +1091,22 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
         json(response, 404, { error: "not-found" });
         return;
       }
+      const counts = registry.stats();
+      const policy = registry.policy();
+      const capacity = {
+        sessions: counts.sessions,
+        maxSessions: counts.maxSessions,
+        remainingSlots: counts.remainingSlots,
+        sessionLimitMinutes: policy.sessionLimitMinutes,
+        cooldownMinutes: policy.cooldownMinutes,
+      };
       if (healthToken) {
         json(response, 200, {
           ok: true,
           name: "ruodao-remote-server",
           version: VERSION,
           uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
-          sessions: registry.stats().sessions,
+          ...capacity,
         });
         return;
       }
@@ -925,7 +1117,27 @@ export function createRemoteServer(options: RemoteServerOptions = {}): RemoteSer
         uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
         admin: adminAuth.configured,
         registrationMode: store.settings.registrationMode,
-        ...registry.stats(),
+        ...capacity,
+        ...counts,
+      });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/server-info") {
+      const counts = registry.stats();
+      const policy = registry.policy();
+      json(response, 200, {
+        ok: true,
+        name: store.settings.serverName,
+        version: VERSION,
+        uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+        registrationMode: store.settings.registrationMode,
+        sessions: counts.sessions,
+        maxSessions: counts.maxSessions,
+        remainingSlots: counts.remainingSlots,
+        acceptingSessions: counts.remainingSlots === null || counts.remainingSlots > 0,
+        sessionLimitMinutes: policy.sessionLimitMinutes,
+        cooldownMinutes: policy.cooldownMinutes,
       });
       return;
     }

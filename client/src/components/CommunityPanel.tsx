@@ -430,7 +430,9 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 <UserIcon size={15} /> 若道账号
               </span>
               <h3>登录后参与讨论</h3>
-              <p>登录只用于向若道提交评论，留言会显示你的昵称，作者可以直接回复。</p>
+              <p>
+                登录只用于向若道提交评论，留言会显示你的昵称，作者可以直接回复。同一个若道账号也会解锁共享服务器详情。
+              </p>
               {expired && (
                 <InlineAlert kind="info">登录已过期，请重新输入密码。远控连接不受影响。</InlineAlert>
               )}

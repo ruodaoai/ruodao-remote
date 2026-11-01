@@ -16,6 +16,11 @@ import type {
   SessionLogEntry,
   Settings,
   SettingsPatch,
+  SharedServerFormInput,
+  SharedServerInfo,
+  SharedServerMineState,
+  SharedServerPage,
+  SharedServerSort,
   UpdateStatus,
 } from "./types";
 import type { InputEventPayload } from "./lib/input";
@@ -85,6 +90,28 @@ declare global {
       communityDelete(input: { reviewId: string }): Promise<CommunityThread>;
       communityOpenApp(): Promise<{ ok: true }>;
       communityOpenMarket(): Promise<{ ok: true }>;
+      sharedServersList(input?: {
+        q?: string;
+        sort?: SharedServerSort;
+        onlineOnly?: boolean;
+        page?: number;
+        size?: number;
+      }): Promise<SharedServerPage>;
+      sharedServersMine(): Promise<SharedServerMineState>;
+      sharedServersRefresh(): Promise<SharedServerMineState>;
+      sharedServersCreate(
+        input: SharedServerFormInput,
+      ): Promise<{ server: SharedServerInfo }>;
+      sharedServersUpdate(
+        input: SharedServerFormInput & { id: string },
+      ): Promise<{ server: SharedServerInfo }>;
+      sharedServersRemove(input: {
+        id: string;
+      }): Promise<{ removed: boolean; alreadyGone: boolean }>;
+      sharedServersReport(input: {
+        id: string;
+        reason?: string;
+      }): Promise<{ reported: boolean; hidden: boolean }>;
       updateStatus(): Promise<UpdateStatus>;
       updateCheck(): Promise<UpdateStatus>;
       updateDownload(): Promise<UpdateStatus>;

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  AccessBlock,
+  AccessBlockKind,
   AdminActivityEntry,
   AdminDevice,
   AdminDeviceStatus,
@@ -11,8 +13,10 @@ import type {
   AdminStatus,
   AdminTarget,
   AdminUpdateStatus,
+  CooldownRecord,
   LocalServerStatus,
   RegistrationMode,
+  ServerPolicy,
   Settings,
   ToastKind,
   UpdateStatus,
@@ -103,6 +107,19 @@ const ACTIVITY_LABELS: Record<string, string> = {
   "admin.login": "管理员登录",
   "admin.login-failed": "管理员登录失败",
   "admin.login-locked": "管理员登录已临时锁定",
+  "access.block": "拉黑设备或 IP",
+  "access.freeze": "冻结设备或 IP",
+  "access.unblock": "解除拉黑或冻结",
+  "access.denied": "拦截受限用户",
+  "cooldown.clear": "解除冷却限制",
+  "session.time-limit": "会话达到时长上限",
+};
+
+const DEFAULT_POLICY: ServerPolicy = {
+  maxSessions: 0,
+  sessionLimitMinutes: 0,
+  cooldownMinutes: 5,
+  freezeMinutes: 10,
 };
 
 type ServerTab =
@@ -111,6 +128,7 @@ type ServerTab =
   | "invites"
   | "sessions"
   | "history"
+  | "risk"
   | "activity"
   | "settings";
 
@@ -209,8 +227,58 @@ function closeReasonLabel(reason: string): string {
     "key-rotated": "密钥已轮换",
     unpublished: "停止共享",
     timeout: "连接超时",
+    "time-limit": "达到单次时长上限",
+    blocked: "被管理员拉黑",
+    frozen: "被管理员冻结",
   };
   return labels[reason] ?? reason;
+}
+
+function remoteMinutes(value: number): string {
+  return value > 0 ? `${value} 分钟` : "不限";
+}
+
+function remainingLabel(until: number): string {
+  const seconds = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} 分钟`;
+  return `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分`;
+}
+
+function capacityLabel(stats: {
+  sessions: number;
+  maxSessions?: number;
+  remainingSlots?: number | null;
+}): {
+  current: number;
+  label: string;
+  hint: string;
+  full: boolean;
+  remaining: number | null;
+} {
+  const current = stats.sessions;
+  const max = stats.maxSessions ?? 0;
+  const remaining = stats.remainingSlots ?? (max > 0 ? Math.max(0, max - current) : null);
+  if (max <= 0) {
+    return {
+      current,
+      label: "不限人数",
+      hint: "未设置并发上限，按带宽与性能评估可接入人数",
+      full: false,
+      remaining: null,
+    };
+  }
+  return {
+    current,
+    label: `${current} / ${max}`,
+    hint:
+      remaining !== null && remaining > 0
+        ? `还可再开启 ${remaining} 路远控，约 ${remaining} 个用户`
+        : "席位已满，新用户需等待他人结束",
+    full: remaining !== null && remaining <= 0,
+    remaining,
+  };
 }
 
 function platformLabel(platform: string): string {
@@ -251,6 +319,29 @@ function parseList<T>(data: unknown, key: string): T[] {
   if (typeof data !== "object" || data === null) return [];
   const value = (data as Record<string, unknown>)[key];
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function parsePolicy(data: unknown): ServerPolicy | null {
+  if (typeof data !== "object" || data === null) return null;
+  const record = (data as Record<string, unknown>).policy;
+  if (typeof record !== "object" || record === null) return null;
+  const value = record as Record<string, unknown>;
+  const read = (key: keyof ServerPolicy, fallback: number): number => {
+    const parsed = Number(value[key]);
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+  };
+  return {
+    maxSessions: read("maxSessions", 0),
+    sessionLimitMinutes: read("sessionLimitMinutes", 0),
+    cooldownMinutes: read("cooldownMinutes", 5),
+    freezeMinutes: Math.max(1, read("freezeMinutes", 10)),
+  };
+}
+
+function parseBlocks(data: unknown): AccessBlock[] {
+  return parseList<AccessBlock>(data, "blocks").filter(
+    (block) => block && (block.kind === "device" || block.kind === "ip") && block.value,
+  );
 }
 
 export function ServerPanel({
@@ -298,6 +389,37 @@ export function ServerPanel({
   const [serverUpdate, setServerUpdate] = useState<AdminUpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState<"check" | "download" | "apply" | null>(null);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+  const [policy, setPolicy] = useState<ServerPolicy>(DEFAULT_POLICY);
+  const [maxSessionsInput, setMaxSessionsInput] = useState("0");
+  const [limitInput, setLimitInput] = useState("0");
+  const [cooldownInput, setCooldownInput] = useState("5");
+  const [freezeInput, setFreezeInput] = useState("10");
+  const [blocks, setBlocks] = useState<AccessBlock[]>([]);
+  const [cooldowns, setCooldowns] = useState<CooldownRecord[]>([]);
+  const [blockKind, setBlockKind] = useState<AccessBlockKind>("device");
+  const [blockValue, setBlockValue] = useState("");
+  const [blockLabel, setBlockLabel] = useState("");
+  const [blockPermanent, setBlockPermanent] = useState(false);
+  const [blockMinutes, setBlockMinutes] = useState("");
+  const [blockReason, setBlockReason] = useState("");
+
+  const policyRef = useRef<ServerPolicy>(DEFAULT_POLICY);
+
+  const adoptPolicy = useCallback((next: ServerPolicy) => {
+    const prev = policyRef.current;
+    const changed =
+      prev.maxSessions !== next.maxSessions ||
+      prev.sessionLimitMinutes !== next.sessionLimitMinutes ||
+      prev.cooldownMinutes !== next.cooldownMinutes ||
+      prev.freezeMinutes !== next.freezeMinutes;
+    if (!changed) return;
+    policyRef.current = next;
+    setPolicy(next);
+    setMaxSessionsInput(String(next.maxSessions));
+    setLimitInput(String(next.sessionLimitMinutes));
+    setCooldownInput(String(next.cooldownMinutes));
+    setFreezeInput(String(next.freezeMinutes));
+  }, []);
 
   const sessionActive =
     Boolean(status?.session) && !(target === "local" && local !== null && !local.running);
@@ -339,6 +461,7 @@ export function ServerPanel({
         sessionsResult,
         historyResult,
         activityResult,
+        riskResult,
       ] = await Promise.all([
         window.remote.adminRequest({ target, path: "/api/admin/overview" }),
         window.remote.adminRequest({ target, path: "/api/admin/devices" }),
@@ -346,6 +469,7 @@ export function ServerPanel({
         window.remote.adminRequest({ target, path: "/api/admin/sessions" }),
         window.remote.adminRequest({ target, path: "/api/admin/sessions/history?limit=80" }),
         window.remote.adminRequest({ target, path: "/api/admin/activity?limit=80" }),
+        window.remote.adminRequest({ target, path: "/api/admin/blocks" }),
       ]);
 
       if (overviewResult.status === 401) {
@@ -355,6 +479,8 @@ export function ServerPanel({
         setSessions([]);
         setHistory([]);
         setActivity([]);
+        setBlocks([]);
+        setCooldowns([]);
         setStatusState((prev) =>
           prev ? { ...prev, session: false } : prev,
         );
@@ -377,6 +503,10 @@ export function ServerPanel({
       setSessions(parseList<AdminSessionInfo>(sessionsResult.data, "sessions"));
       setHistory(parseList<AdminSessionRecord>(historyResult.data, "sessions"));
       setActivity(parseList<AdminActivityEntry>(activityResult.data, "entries"));
+      setBlocks(parseBlocks(riskResult.data));
+      setCooldowns(parseList<CooldownRecord>(riskResult.data, "cooldowns"));
+      const remotePolicy = parsePolicy(riskResult.data) ?? parsePolicy(overviewResult.data);
+      if (remotePolicy) adoptPolicy(remotePolicy);
       setStatusState((prev) =>
         prev ? { ...prev, session: true, configured: true } : prev,
       );
@@ -387,7 +517,7 @@ export function ServerPanel({
     } finally {
       setRefreshing(false);
     }
-  }, [target]);
+  }, [target, adoptPolicy]);
 
   const loadServerUpdate = useCallback(async () => {
     try {
@@ -438,6 +568,14 @@ export function ServerPanel({
   useEffect(() => {
     setServerUpdate(null);
     setUpdateMessage(null);
+    policyRef.current = DEFAULT_POLICY;
+    setPolicy(DEFAULT_POLICY);
+    setMaxSessionsInput("0");
+    setLimitInput("0");
+    setCooldownInput("5");
+    setFreezeInput("10");
+    setBlocks([]);
+    setCooldowns([]);
   }, [target]);
 
   useEffect(() => {
@@ -692,6 +830,110 @@ export function ServerPanel({
     }
   }
 
+  async function savePolicy(): Promise<void> {
+    setBusyKey("policy-save");
+    setError(null);
+    try {
+      const result = await window.remote.adminRequest({
+        target,
+        method: "PATCH",
+        path: "/api/admin/settings",
+        body: {
+          policy: {
+            maxSessions: Number(maxSessionsInput) || 0,
+            sessionLimitMinutes: Number(limitInput) || 0,
+            cooldownMinutes: Number(cooldownInput) || 0,
+            freezeMinutes: Number(freezeInput) || 10,
+          },
+        },
+      });
+      if (!result.ok) {
+        setError(result.error ?? "保存风控策略失败");
+        return;
+      }
+      const data = result.data as { policy?: ServerPolicy } | null;
+      if (data?.policy) {
+        policyRef.current = data.policy;
+        setPolicy(data.policy);
+        setMaxSessionsInput(String(data.policy.maxSessions));
+        setLimitInput(String(data.policy.sessionLimitMinutes));
+        setCooldownInput(String(data.policy.cooldownMinutes));
+        setFreezeInput(String(data.policy.freezeMinutes));
+      }
+      notify("风控策略已生效", "success");
+      await refresh(true);
+    } catch (err) {
+      setError(cleanError(err));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function createBlock(): Promise<void> {
+    const value = blockValue.trim();
+    if (!value) {
+      setError(blockKind === "device" ? "请填写设备 ID。" : "请填写 IP 地址。");
+      return;
+    }
+    setBusyKey("block-create");
+    setError(null);
+    try {
+      const result = await window.remote.adminRequest({
+        target,
+        method: "POST",
+        path: "/api/admin/blocks",
+        body: {
+          kind: blockKind,
+          value,
+          label: blockLabel.trim() || value,
+          permanent: blockPermanent,
+          minutes: Number(blockMinutes) || policy.freezeMinutes,
+          reason:
+            blockReason.trim() ||
+            (blockPermanent ? "管理员拉黑" : `管理员冻结 ${Number(blockMinutes) || policy.freezeMinutes} 分钟`),
+        },
+      });
+      if (!result.ok) {
+        setError(result.error ?? "提交拉黑或冻结失败");
+        return;
+      }
+      setBlockValue("");
+      setBlockLabel("");
+      setBlockReason("");
+      notify(blockPermanent ? "已拉黑该对象" : "已冻结该对象", "success");
+      await refresh(true);
+    } catch (err) {
+      setError(cleanError(err));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function quickFreeze(device: AdminDevice): Promise<void> {
+    if (
+      !window.confirm(
+        `冻结“${device.name}”${policy.freezeMinutes} 分钟？期间该设备无法登录，正在进行的远控会被断开。`,
+      )
+    ) {
+      return;
+    }
+    await runAction(
+      `device-${device.id}`,
+      {
+        method: "POST",
+        path: "/api/admin/blocks",
+        body: {
+          kind: "device",
+          value: device.id,
+          label: device.name,
+          minutes: policy.freezeMinutes,
+          reason: `管理员冻结 ${policy.freezeMinutes} 分钟`,
+        },
+      },
+      `已冻结“${device.name}”${policy.freezeMinutes} 分钟`,
+    );
+  }
+
   async function startLocal(): Promise<void> {
     if (localBusy) return;
     setLocalBusy(true);
@@ -774,6 +1016,12 @@ export function ServerPanel({
 
   const pendingCount = devices.filter((device) => device.status === "pending").length;
   const activeInviteCount = invites.filter((invite) => invite.active).length;
+  const capacity = capacityLabel({
+    sessions: sessions.length,
+    maxSessions: policy.maxSessions,
+    remainingSlots: overview?.stats.remainingSlots ?? null,
+  });
+  const sessionKbps = overview?.stats.sessionKbps ?? 0;
   const statusTone: "idle" | "busy" | "online" | "error" = sessionActive
     ? "online"
     : target === "local"
@@ -1198,6 +1446,16 @@ export function ServerPanel({
             </button>
             <button
               type="button"
+              className={`server-tab${tab === "risk" ? " active" : ""}`}
+              onClick={() => setTab("risk")}
+            >
+              风控
+              {blocks.length + cooldowns.length > 0 && (
+                <span className="server-tab-badge soft">{blocks.length + cooldowns.length}</span>
+              )}
+            </button>
+            <button
+              type="button"
               className={`server-tab${tab === "history" ? " active" : ""}`}
               onClick={() => setTab("history")}
             >
@@ -1246,6 +1504,11 @@ export function ServerPanel({
                   <span className="stat-label">有效邀请码</span>
                   <strong>{overview?.stats.activeInvites ?? 0}</strong>
                   <span className="stat-foot">可供新客户端接入</span>
+                </div>
+                <div className={`stat-card${capacity.full ? " full" : ""}`}>
+                  <span className="stat-label">远控席位</span>
+                  <strong>{capacity.label}</strong>
+                  <span className="stat-foot">{capacity.hint}</span>
                 </div>
                 <div className="stat-card">
                   <span className="stat-label">运行时间</span>
@@ -1357,6 +1620,22 @@ export function ServerPanel({
                       <small>WebSocket 发送</small>
                     </div>
                     <div className="network-metric">
+                      <span>远控占用码率</span>
+                      <strong>{formatRate(sessionKbps)}</strong>
+                      <small>{sessions.length} 路会话上报之和</small>
+                    </div>
+                    <div className="network-metric">
+                      <span>剩余远控席位</span>
+                      <strong>
+                        {capacity.remaining === null ? "不限" : `${capacity.remaining} 路`}
+                      </strong>
+                      <small>
+                        {policy.maxSessions > 0
+                          ? `上限 ${policy.maxSessions} 路 · 当前 ${sessions.length} 路`
+                          : "可在风控页设置并发上限"}
+                      </small>
+                    </div>
+                    <div className="network-metric">
                       <span>CPU</span>
                       <strong>{overview.network.cpuPct.toFixed(1)}%</strong>
                       <small>服务端进程与系统均值</small>
@@ -1381,7 +1660,9 @@ export function ServerPanel({
                   <p className="server-note">服务端指标采样中，约 5 秒后显示。</p>
                 )}
                 <p className="server-note">
-                  当前 {sessions.length} 人正在远控 · 网卡带宽包含服务器上全部服务
+                  当前 {sessions.length} 人正在远控 · {capacity.hint} · 单次时长{" "}
+                  {remoteMinutes(policy.sessionLimitMinutes)} · 到达上限后冷却{" "}
+                  {remoteMinutes(policy.cooldownMinutes)}
                   {overview?.security ? ` · 已封禁 IP ${overview.security.activeBans} 个` : ""}
                   {overview?.network && !overview.network.nicSupported
                     ? " · 当前系统未暴露网卡计数，仅信令流量可参考"
@@ -1539,6 +1820,7 @@ export function ServerPanel({
                             <span>
                               {platformLabel(device.platform)} · v{device.version}
                               {device.roles.length > 0 && ` · ${device.roles.includes("host") ? "被控" : "控制"}`}
+                              {" · "}ID {device.id.slice(0, 8)}
                             </span>
                           </div>
                         </div>
@@ -1556,6 +1838,7 @@ export function ServerPanel({
                           <span>{device.ip || device.lastIp || "—"}</span>
                         </div>
                         <div className="device-actions">
+                          <CopyButton value={device.id} label="复制设备 ID" />
                           {device.status === "pending" && (
                             <button
                               type="button"
@@ -1614,6 +1897,17 @@ export function ServerPanel({
                               }
                             >
                               解封
+                            </button>
+                          )}
+                          {device.status !== "blocked" && (
+                            <button
+                              type="button"
+                              className="mini-button"
+                              disabled={busy}
+                              title={`临时冻结 ${policy.freezeMinutes} 分钟，期间无法登录`}
+                              onClick={() => void quickFreeze(device)}
+                            >
+                              冻结 {policy.freezeMinutes} 分
                             </button>
                           )}
                           {device.online && (
@@ -1875,6 +2169,11 @@ export function ServerPanel({
                         <div className="session-meta-line">
                           <span>远控码 {formatCode(session.code)}</span>
                           <span>开始于 {formatTime(session.createdAt)}</span>
+                          {session.endsAt ? (
+                            <span>
+                              剩余 {formatDuration(Math.max(0, session.endsAt - Date.now()))} 自动结束
+                            </span>
+                          ) : null}
                           <span>被控方 IP {session.host.ip || "—"}</span>
                           <span>控制方 IP {session.controller.ip || "—"}</span>
                         </div>
@@ -1934,6 +2233,322 @@ export function ServerPanel({
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === "risk" && (
+            <div className="server-tab-body">
+              <div className="risk-layout">
+                <div className="server-card">
+                  <div className="server-card-head">
+                    <ShieldIcon size={17} />
+                    <strong>并发与时长限制</strong>
+                    <span className="server-card-aside">立即生效</span>
+                  </div>
+                  <div className="risk-form-grid">
+                    <label className="field">
+                      <div className="field-label">
+                        <span>最大同时远控人数</span>
+                        <span className="field-hint">0 为不限</span>
+                      </div>
+                      <div className="input-shell">
+                        <input
+                          value={maxSessionsInput}
+                          onChange={(event) =>
+                            setMaxSessionsInput(event.target.value.replace(/[^0-9]/g, ""))
+                          }
+                          inputMode="numeric"
+                          placeholder="0"
+                          maxLength={5}
+                        />
+                      </div>
+                    </label>
+                    <label className="field">
+                      <div className="field-label">
+                        <span>单次远控时长（分钟）</span>
+                        <span className="field-hint">0 为不限</span>
+                      </div>
+                      <div className="input-shell">
+                        <input
+                          value={limitInput}
+                          onChange={(event) =>
+                            setLimitInput(event.target.value.replace(/[^0-9]/g, ""))
+                          }
+                          inputMode="numeric"
+                          placeholder="0"
+                          maxLength={4}
+                        />
+                      </div>
+                    </label>
+                    <label className="field">
+                      <div className="field-label">
+                        <span>超时后冷却（分钟）</span>
+                        <span className="field-hint">到达时长上限后等待</span>
+                      </div>
+                      <div className="input-shell">
+                        <input
+                          value={cooldownInput}
+                          onChange={(event) =>
+                            setCooldownInput(event.target.value.replace(/[^0-9]/g, ""))
+                          }
+                          inputMode="numeric"
+                          placeholder="5"
+                          maxLength={4}
+                        />
+                      </div>
+                    </label>
+                    <label className="field">
+                      <div className="field-label">
+                        <span>默认冻结时长（分钟）</span>
+                        <span className="field-hint">快捷冻结使用</span>
+                      </div>
+                      <div className="input-shell">
+                        <input
+                          value={freezeInput}
+                          onChange={(event) =>
+                            setFreezeInput(event.target.value.replace(/[^0-9]/g, ""))
+                          }
+                          inputMode="numeric"
+                          placeholder="10"
+                          maxLength={5}
+                        />
+                      </div>
+                    </label>
+                  </div>
+                  <p className="field-help">
+                    达到人数上限后，新用户会看到“服务器远控席位已满”并需要等待；达到单次时长后会话自动结束，控制方需要等待冷却结束后才能再次发起远控。当前生效：并发{" "}
+                    {policy.maxSessions > 0 ? `${policy.maxSessions} 人` : "不限"}、单次{" "}
+                    {remoteMinutes(policy.sessionLimitMinutes)}、冷却{" "}
+                    {remoteMinutes(policy.cooldownMinutes)}、冻结默认{" "}
+                    {remoteMinutes(policy.freezeMinutes)}。
+                  </p>
+                  <button
+                    type="button"
+                    className="button primary"
+                    disabled={busyKey === "policy-save"}
+                    onClick={() => void savePolicy()}
+                  >
+                    {busyKey === "policy-save" ? (
+                      <span className="spinner" />
+                    ) : (
+                      <CheckIcon size={16} />
+                    )}
+                    保存风控策略
+                  </button>
+                </div>
+
+                <div className="server-card">
+                  <div className="server-card-head">
+                    <AlertIcon size={17} />
+                    <strong>拉黑 / 冻结设备或 IP</strong>
+                  </div>
+                  <div className="filter-pills">
+                    <button
+                      type="button"
+                      className={`filter-pill${blockKind === "device" ? " active" : ""}`}
+                      onClick={() => setBlockKind("device")}
+                    >
+                      指定电脑
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill${blockKind === "ip" ? " active" : ""}`}
+                      onClick={() => setBlockKind("ip")}
+                    >
+                      指定 IP
+                    </button>
+                  </div>
+                  <label className="field">
+                    <div className="field-label">
+                      <span>{blockKind === "device" ? "设备 ID" : "IP 地址"}</span>
+                      <span className="field-hint">
+                        {blockKind === "device" ? "可在下方列表复制" : "支持 IPv4 / IPv6"}
+                      </span>
+                    </div>
+                    <div className="input-shell">
+                      <input
+                        value={blockValue}
+                        onChange={(event) => setBlockValue(event.target.value)}
+                        placeholder={
+                          blockKind === "device" ? "例如 5b1c…（设备 ID）" : "例如 203.0.113.10"
+                        }
+                        maxLength={64}
+                      />
+                    </div>
+                  </label>
+                  <div className="risk-form-row">
+                    <label className="field">
+                      <div className="field-label">
+                        <span>备注名称</span>
+                        <span className="field-hint">可选</span>
+                      </div>
+                      <div className="input-shell">
+                        <input
+                          value={blockLabel}
+                          onChange={(event) => setBlockLabel(event.target.value)}
+                          placeholder="例如：小王-公司电脑"
+                          maxLength={64}
+                        />
+                      </div>
+                    </label>
+                    <label className="field">
+                      <div className="field-label">
+                        <span>冻结时长（分钟）</span>
+                        <span className="field-hint">默认 {policy.freezeMinutes}</span>
+                      </div>
+                      <div className="input-shell">
+                        <input
+                          value={blockMinutes}
+                          onChange={(event) =>
+                            setBlockMinutes(event.target.value.replace(/[^0-9]/g, ""))
+                          }
+                          placeholder={String(policy.freezeMinutes)}
+                          inputMode="numeric"
+                          disabled={blockPermanent}
+                          maxLength={5}
+                        />
+                      </div>
+                    </label>
+                  </div>
+                  <label className="checkbox-line">
+                    <input
+                      type="checkbox"
+                      checked={blockPermanent}
+                      onChange={(event) => setBlockPermanent(event.target.checked)}
+                    />
+                    <span>永久拉黑（不自动解封，需要管理员手动解除）</span>
+                  </label>
+                  <label className="field">
+                    <div className="field-label">
+                      <span>原因</span>
+                      <span className="field-hint">会写入客户端与服务端日志</span>
+                    </div>
+                    <div className="input-shell">
+                      <input
+                        value={blockReason}
+                        onChange={(event) => setBlockReason(event.target.value)}
+                        placeholder={blockPermanent ? "例如：多次违规操作" : "例如：临时限制 10 分钟"}
+                        maxLength={120}
+                      />
+                    </div>
+                  </label>
+                  <button
+                    type="button"
+                    className="button primary"
+                    disabled={busyKey === "block-create"}
+                    onClick={() => void createBlock()}
+                  >
+                    {busyKey === "block-create" ? (
+                      <span className="spinner" />
+                    ) : (
+                      <ShieldIcon size={16} />
+                    )}
+                    {blockPermanent ? "永久拉黑" : "冻结一段时间"}
+                  </button>
+                  <p className="field-help">
+                    限制立即生效：命中设备或 IP 的客户端会被断开，并在一段时间内无法登录或发起远控。操作会记录到“动态”与服务端安全日志。
+                  </p>
+                </div>
+              </div>
+
+              <div className="server-card">
+                <div className="server-card-head">
+                  <ShieldIcon size={17} />
+                  <strong>生效中的限制</strong>
+                  <span className="card-head-note">
+                    {blocks.length} 条拉黑/冻结 · {cooldowns.length} 条冷却
+                  </span>
+                </div>
+                {blocks.length === 0 && cooldowns.length === 0 ? (
+                  <div className="server-empty compact">
+                    <ShieldIcon size={22} />
+                    <p>当前没有拉黑、冻结或冷却中的用户。</p>
+                  </div>
+                ) : (
+                  <div className="risk-list">
+                    {blocks.map((block) => (
+                      <div className="risk-item" key={block.id}>
+                        <div className="risk-item-main">
+                          <span className={`risk-kind ${block.kind}`}>
+                            {block.kind === "device" ? "设备" : "IP"}
+                          </span>
+                          <div>
+                            <strong>{block.label || block.value}</strong>
+                            <code>{block.value}</code>
+                          </div>
+                          <StatusPill
+                            tone={block.expiresAt === null ? "error" : "busy"}
+                            label={
+                              block.expiresAt === null
+                                ? "永久拉黑"
+                                : `冻结至 ${formatTime(block.expiresAt)}`
+                            }
+                          />
+                        </div>
+                        <div className="risk-item-meta">
+                          <span>{block.reason || "未填写原因"}</span>
+                          <span>操作于 {formatTime(block.createdAt)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="mini-button primary"
+                          disabled={busyKey === `block-${block.id}`}
+                          onClick={() =>
+                            void runAction(
+                              `block-${block.id}`,
+                              {
+                                method: "DELETE",
+                                path: `/api/admin/blocks/${encodeURIComponent(block.id)}`,
+                              },
+                              "限制已解除",
+                            )
+                          }
+                        >
+                          解除
+                        </button>
+                      </div>
+                    ))}
+                    {cooldowns.map((cooldown) => (
+                      <div className="risk-item cooldown" key={cooldown.key}>
+                        <div className="risk-item-main">
+                          <span className="risk-kind cooldown">冷却</span>
+                          <div>
+                            <strong>{cooldown.label || cooldown.key}</strong>
+                            <code>{cooldown.key}</code>
+                          </div>
+                          <StatusPill
+                            tone="busy"
+                            label={`剩余 ${remainingLabel(cooldown.until)}`}
+                          />
+                        </div>
+                        <div className="risk-item-meta">
+                          <span>
+                            {closeReasonLabel(cooldown.reason)} · 结束于{" "}
+                            {formatTime(cooldown.until)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="mini-button"
+                          disabled={busyKey === `cooldown-${cooldown.key}`}
+                          onClick={() =>
+                            void runAction(
+                              `cooldown-${cooldown.key}`,
+                              {
+                                method: "DELETE",
+                                path: `/api/admin/cooldowns/${encodeURIComponent(cooldown.key)}`,
+                              },
+                              "冷却限制已解除",
+                            )
+                          }
+                        >
+                          解除冷却
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

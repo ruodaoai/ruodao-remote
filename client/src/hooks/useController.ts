@@ -131,6 +131,7 @@ export function useController(
   const [quality, setQualityState] = useState<QualityPreset>("balanced");
   const [chatMessages, setChatMessages] = useState<SessionChatMessage[]>([]);
   const [serverStats, setServerStats] = useState<ServerStats | null>(null);
+  const [sessionEndsAt, setSessionEndsAt] = useState<number | null>(null);
 
   const engineRef = useRef<ControllerEngine>(createEngine());
   const settingsRef = useRef<Settings | null>(settings);
@@ -400,6 +401,7 @@ export function useController(
     engine.candidates = [];
     setHostName(null);
     setServerStats(null);
+    setSessionEndsAt(null);
   }
 
   function sendSignal(gen: number, data: SignalData): void {
@@ -422,6 +424,7 @@ export function useController(
     const pc = new RTCPeerConnection({ iceServers: toIceServers(message.iceServers) });
     engine.peer = pc;
     setHostName(message.host);
+    setSessionEndsAt(message.endsAt ?? null);
     pc.ontrack = (event) => {
       const [remote] = event.streams;
       if (remote) setStream(remote);
@@ -589,7 +592,7 @@ export function useController(
       case "peer.left":
         resetSession(message.reason || "peer-left");
         setPhase("idle");
-        notifyRef.current(peerLeftMessage(message.reason), "info");
+        notifyRef.current(peerLeftMessage(message.reason, message.cooldownUntil), "info");
         break;
       case "server.stats":
         setServerStats(message.stats);
@@ -801,6 +804,7 @@ export function useController(
     stream,
     stats,
     serverStats,
+    sessionEndsAt,
     channelReady,
     inputPaused,
     clipboardAllowed,

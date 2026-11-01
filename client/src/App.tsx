@@ -7,11 +7,13 @@ import { HelpCenter } from "./components/HelpCenter";
 import { HostPanel } from "./components/HostPanel";
 import { OnboardingDialog } from "./components/OnboardingDialog";
 import { ServerPanel } from "./components/ServerPanel";
+import { SharedServersPanel } from "./components/SharedServersPanel";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ToastStack } from "./components/ui";
 import { UpdateDialog } from "./components/UpdateDialog";
 import {
   ChatIcon,
+  GlobeIcon,
   HelpIcon,
   LinkIcon,
   MonitorIcon,
@@ -38,7 +40,7 @@ const EMPTY_DIAGNOSIS: Diagnosis = {
   headline: "当前状态正常",
 };
 
-type Tab = "host" | "control" | "server" | "community";
+type Tab = "host" | "control" | "server" | "shared" | "community";
 
 function readSmokeParams(): {
   code: string;
@@ -255,14 +257,38 @@ export default function App() {
     }
   }, [updatePhase, updateVersion, notify]);
 
-  async function saveSettings(patch: SettingsPatch): Promise<void> {
+  async function saveSettings(
+    patch: SettingsPatch,
+    message = "设置已保存",
+  ): Promise<void> {
     const hostActive = host.phase === "online" || host.phase === "connecting" || host.phase === "pending";
     const controlling = controller.phase !== "idle" && controller.phase !== "error";
     const next = await window.remote.updateSettings(patch);
     if (hostActive) host.stop();
     if (controlling) controller.disconnect();
     setSettings(next);
-    notify("设置已保存", "success");
+    notify(message, "success");
+  }
+
+  async function useSharedServer(
+    url: string,
+    inviteCode: string,
+    name: string,
+  ): Promise<void> {
+    const hostActive =
+      host.phase === "online" || host.phase === "connecting" || host.phase === "pending";
+    const controlling = controller.phase !== "idle" && controller.phase !== "error";
+    if (
+      (hostActive || controlling) &&
+      !window.confirm("切换服务器会断开当前连接，确定继续吗？")
+    ) {
+      return;
+    }
+    await saveSettings(
+      { serverUrl: url, inviteCode },
+      `已填入「${name}」的服务器地址和邀请码，输入远控码即可连接`,
+    );
+    setTab("control");
   }
 
   async function applyInvite(code: string): Promise<void> {
@@ -359,6 +385,15 @@ export default function App() {
             <ServerIcon size={16} />
             服务端
             {settings.adminReady && <span className="tab-dot" aria-label="已保存管理员密码" />}
+          </button>
+          <button
+            type="button"
+            data-testid="tab-shared"
+            className={`mode-tab${tab === "shared" ? " active" : ""}`}
+            onClick={() => setTab("shared")}
+          >
+            <GlobeIcon size={16} />
+            共享服务器
           </button>
           <button
             type="button"
@@ -485,6 +520,7 @@ export default function App() {
             stream={controller.stream}
             stats={controller.stats}
             serverStats={controller.serverStats}
+            sessionEndsAt={controller.sessionEndsAt}
             channelReady={controller.channelReady}
             inputPaused={controller.inputPaused}
             clipboardAllowed={controller.clipboardAllowed}
@@ -525,6 +561,13 @@ export default function App() {
             onOpenGuide={openGuide}
             onAskAi={() => openAssistant()}
             onOpenClientUpdate={() => setUpdateOpen(true)}
+          />
+        ) : tab === "shared" ? (
+          <SharedServersPanel
+            settings={settings}
+            assistant={assistant}
+            onUseServer={useSharedServer}
+            notify={notify}
           />
         ) : (
           <CommunityPanel assistant={assistant} community={community} />

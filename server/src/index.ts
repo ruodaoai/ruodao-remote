@@ -19,6 +19,17 @@ function readRegistrationMode(value: string | undefined): RegistrationMode {
   return value === "approval" || value === "open" || value === "invite" ? value : "invite";
 }
 
+function readPolicyNumber(
+  value: string | undefined,
+  min: number,
+  max: number,
+): number | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
 const port = readNumber(process.env.PORT, 8787);
 const host = process.env.HOST?.trim() || "0.0.0.0";
 const trustProxy = process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true";
@@ -32,6 +43,12 @@ const dataFile = path.join(dataDir, "state.json");
 const publicUrl = (process.env.PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
 const serverName = (process.env.SERVER_NAME ?? "").trim() || "若道远程服务";
 const registrationMode = readRegistrationMode(process.env.REGISTRATION_MODE);
+const policy = {
+  maxSessions: readPolicyNumber(process.env.MAX_SESSIONS, 0, 10000),
+  sessionLimitMinutes: readPolicyNumber(process.env.SESSION_LIMIT_MINUTES, 0, 1440),
+  cooldownMinutes: readPolicyNumber(process.env.COOLDOWN_MINUTES, 0, 1440),
+  freezeMinutes: readPolicyNumber(process.env.FREEZE_MINUTES, 1, 10080),
+};
 const adminSessionHours = readNumber(process.env.ADMIN_SESSION_HOURS, 12);
 const adminPassword = (process.env.ADMIN_PASSWORD ?? "").trim();
 const adminPasswordHash = (process.env.ADMIN_PASSWORD_HASH ?? "").trim();
@@ -110,6 +127,7 @@ function startServer(): void {
     publicUrl,
     serverName,
     registrationMode,
+    policy,
     adminPassword: adminPassword || null,
     adminPasswordHash: adminPasswordHash || null,
     adminSessionMs: adminSessionHours * 60 * 60 * 1000,
@@ -156,6 +174,7 @@ function startServer(): void {
         dataFile,
         publicUrl: publicUrl || null,
         registrationMode,
+        policy,
         admin: Boolean(adminPassword || adminPasswordHash),
         adminPath: adminPath ?? "/admin",
         healthProtected: Boolean(healthToken),

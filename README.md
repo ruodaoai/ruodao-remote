@@ -2,6 +2,13 @@
 
 **免注册的 Windows 桌面远控。** 被控端打开协助后得到 9 位远控码和 10 位访问密钥，主控端输入这两串号码即可连接。画面与键鼠输入通过 WebRTC 在两端之间端到端加密传输，服务器只负责信令、设备管理和 TURN 凭证。
 
+[**简体中文**](README.md) · [English](README.en.md)
+
+[![Release](https://img.shields.io/github/v/release/ruodaoai/ruodao-remote?label=release)](https://github.com/ruodaoai/ruodao-remote/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078d4.svg)](#系统要求与已知限制)
+[![CI](https://github.com/ruodaoai/ruodao-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/ruodaoai/ruodao-remote/actions/workflows/ci.yml)
+
 [**下载 Windows 版**](https://github.com/ruodaoai/ruodao-remote/releases/latest) ·
 [服务端部署包](https://github.com/ruodaoai/ruodao-remote/releases/latest/download/ruodao-remote-server.zip) ·
 [快速开始](docs/快速开始.md) ·
@@ -9,7 +16,7 @@
 [常见问题](docs/常见问题.md)
 
 <p align="center">
-  <img src="docs/images/01-host.png" alt="若道远程客户端主界面" width="860">
+  <img src="docs/images/01-host.png" alt="若道远程客户端主界面：本机被控页显示 9 位远控码与 10 位访问密钥" width="880">
 </p>
 
 ## 为什么用它
@@ -18,22 +25,26 @@
 | --- | --- |
 | **不用注册** | 没有账号、没有邮箱验证，也不需要把设备绑定到云平台。两串号码就能建立一次远控。 |
 | **端到端加密** | 画面与键鼠走 WebRTC，媒体与数据通道由 DTLS-SRTP 加密。信令服务器只能看到设备名、平台和连接元数据，看不到屏幕内容。 |
-| **服务器自己掌握** | 信令、设备审批、邀请码和审计都在你自己的服务器上。局域网可以直接用 Windows 本机服务端，公网可以用客户端一键部署到 Linux 云服务器。 |
+| **服务器自己掌握** | 信令、设备审批、邀请码和审计都在你自己的服务器上。局域网可直接用 Windows 本机服务端，公网可用客户端一键部署到 Linux 云服务器。 |
 | **开箱即用的协作** | 会话中可文字聊天、按需同步剪贴板、切换画质与缩放、随时暂停输入；还支持把设备共享给同一服务器的成员，并由设备主人逐次批准。 |
+| **共享服务器目录** | 「共享服务器」页汇总社区公开分享的信令服务器：按在线、延迟与有效期排序，一键把地址和邀请码写入本机设置；也支持发布自己的服务器、更新信息、下架与举报。 |
 | **遇到问题有兜底** | 内置分场景使用指南、基于当前状态的故障诊断，以及可选的 AI 助手（登录若道账号后使用，可附截图）。 |
-| **社区反馈** | 客户端内置「社区留言」，同步若道插件市场评论区的评分与留言；登录后可以参与讨论、标记有帮助。 |
-| **可持续维护** | 客户端与 Linux 服务端都支持从若道发布接口检查更新，发布包强制校验 SHA-256。客户端自动下载并在退出时安装；服务端由一键部署安装的系统定时器在空闲时自动更新，失败自动回滚。 |
+| **社区反馈** | 客户端内置「社区留言」，同步若道插件市场评论区的评分与留言；与共享服务器共用同一个若道账号登录态。 |
+| **可持续维护** | 客户端与 Linux 服务端都支持从若道发布接口检查更新，发布包强制校验 SHA-256。客户端自动下载并在退出时安装；服务端由部署脚本安装的系统定时器在空闲时自动更新，失败自动回滚。 |
 
 ## 界面预览
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/02-control.png" alt="输入远控码连接另一台电脑"><br><sub>输入 9 位远控码和 10 位密钥即可连接，不需要账号。</sub></td>
-    <td width="50%"><img src="docs/images/06-session.png" alt="远程会话"><br><sub>实时画面、键鼠控制、画质与缩放、会话聊天都在一个窗口里。</sub></td>
+    <td width="50%"><img src="docs/images/02-control.png" alt="控制远程设备页"><br><sub><b>连接另一台电脑</b>：输入 9 位远控码和 10 位访问密钥，不需要账号。</sub></td>
+    <td width="50%"><img src="docs/images/04-shared.png" alt="共享服务器页"><br><sub><b>共享服务器</b>：社区分享的信令服务器，登录后可见地址与邀请码，一键接入。</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/03-server.png" alt="服务端管理"><br><sub>在客户端里登录自建服务器，管理设备、邀请码、会话与操作记录。</sub></td>
-    <td width="50%"><img src="docs/images/04-guide.png" alt="使用指南"><br><sub>内置使用指南、故障排查与 AI 助手，不用先读文档。</sub></td>
+    <td width="50%"><img src="docs/images/03-server.png" alt="服务端管理页"><br><sub><b>服务端管理</b>：在客户端里登录自建服务器，管理设备、邀请码、会话与操作记录。</sub></td>
+    <td width="50%"><img src="docs/images/05-guide.png" alt="使用指南"><br><sub><b>内置指南</b>：分场景步骤、故障排查与 AI 助手，不用先读文档。</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/06-settings.png" alt="设置"><br><sub><b>设置</b>：服务器地址、邀请码、开机自启、剪贴板与自动更新，都在一个弹窗里。</sub></td>
   </tr>
 </table>
 
@@ -56,7 +67,19 @@
 
 在另一台电脑打开同一个客户端，切到「控制远程设备」，填写相同的服务器地址，输入远控码与访问密钥，点击「连接远程设备」。被控端画面上会出现「正在被控制」，主控端即可看到画面并操作鼠标键盘。
 
-> 默认服务器地址是 `http://127.0.0.1:8787`，只适合本机或同一台机器上的测试。要让两台电脑连接，需要先准备一个信令服务器（见下一节）。
+> 默认服务器地址是 `http://127.0.0.1:8787`，只适合本机或同一台机器上的测试。要让两台电脑连接，需要先准备一个信令服务器（见下一节），或者在「共享服务器」页选一台社区分享的服务器。
+
+## 共享服务器
+
+「共享服务器」页是一个社区目录，数据来自若道云端接口，客户端只负责展示与跳转，不参与实际远控连接：
+
+- **共享列表**：展示名称、地区、配置说明、在线状态、可接入设备数、服务端版本与有效期；支持搜索、按推荐/延迟/即将到期排序、只看在线。离线或过期的服务器不能接入。
+- **登录后解锁**：未登录时只显示脱敏信息，并引导登录若道账号；登录态与「社区留言」共用。登录后才显示服务器地址与邀请码。
+- **一键使用**：点击「使用此服务器」会把地址与邀请码写入本机设置并跳到「控制远程设备」，不需要手动抄写。
+- **我的分享**：发布自己的服务器（名称、地址、地区、配置、可接入设备数、邀请码、补充说明），发布后可更新信息或下架。
+- **举报**：对失效或违规的服务器提交报告，客户端会立即在本机隐藏该条目，等管理员复核。
+
+> 共享服务器只是一种「公共信令服务器清单」。屏幕内容仍然只在两台设备之间传输，共享服务器的拥有者看不到你的画面。
 
 ## 自建服务端
 
@@ -95,7 +118,7 @@ sudo bash install.sh
 - **管理面**：管理员密码使用 scrypt 校验，登录态是带 HMAC 签名的 HttpOnly Cookie 或短期 Bearer Token；连续失败会按 IP 和全局双重锁定。
 - **更新校验**：更新包必须来自 `ruodao.com` 或其子域名、必须提供 SHA-256，校验失败直接拒绝安装。
 
-更完整的边界与已知限制见 [技术文档](docs/技术文档.md#7-安全模型与边界)。
+更完整的边界与已知限制见 [技术文档](docs/技术文档.md#7-安全模型与边界)，以及 [SECURITY.md](SECURITY.md)。
 
 ## 系统要求与已知限制
 
@@ -108,13 +131,14 @@ sudo bash install.sh
 
 ## 文档
 
-| 文档 | 内容 |
-| --- | --- |
-| [快速开始](docs/快速开始.md) | 安装、被控、主控、会话协作与首次排查 |
-| [服务端部署](docs/服务端部署.md) | 一键部署、手动安装、HTTPS、TURN、管理后台 |
-| [常见问题](docs/常见问题.md) | SmartScreen、防火墙、NAT、连接失败、更新失败 |
-| [更新与发布](docs/更新与发布.md) | 版本体系、更新接口约定、发布流程、客户端与服务端自动更新配置 |
-| [技术文档](docs/技术文档.md) | 完整的环境变量、协议、安全边界与验证方法 |
+| 中文 | English | 内容 |
+| --- | --- | --- |
+| [快速开始](docs/快速开始.md) | [Quick start](docs/en/quick-start.md) | 安装、被控、主控、会话协作与首次排查 |
+| [服务端部署](docs/服务端部署.md) | [Server deployment](docs/en/server-deployment.md) | 一键部署、手动安装、HTTPS、TURN、管理后台 |
+| [常见问题](docs/常见问题.md) | [FAQ](docs/en/faq.md) | SmartScreen、防火墙、NAT、连接失败、更新失败 |
+| [更新与发布](docs/更新与发布.md) | [Updates & releases](docs/en/updates-and-releases.md) | 版本体系、更新接口约定、发布流程、自动更新配置 |
+| [技术文档](docs/技术文档.md) | [Technical reference](docs/en/technical-reference.md) | 完整的环境变量、协议、安全边界与验证方法 |
+| [贡献指南](CONTRIBUTING.md) | [Contributing](docs/en/contributing.md) | 开发环境、分支与提交规范、PR 要求 |
 
 ## 从源码构建
 
@@ -150,23 +174,29 @@ cd client && npm test && npm run typecheck && npm run build
 
 ```
 ruodao-remote/
-├─ client/   Electron + React 桌面客户端（Windows x64）
-├─ server/   Node.js + TypeScript 信令服务器（含 /admin 管理后台）
-├─ docs/     使用教程、部署文档、更新说明与截图
-└─ packaging/ 服务端部署包脚本与 systemd 模板
+├─ client/            Electron + React 桌面客户端（Windows x64）
+│  ├─ electron/       主进程：信令、远控、共享设备、部署、更新、社区
+│  ├─ src/            渲染层：页面、组件、hooks 与样式
+│  └─ scripts/        构建、截图、更新清单与冒烟脚本
+├─ server/            Node.js + TypeScript 信令服务器（含 /admin 管理后台）
+├─ docs/              使用教程、部署文档、更新说明、截图（docs/en 为英文版）
+├─ packaging/server/  服务端部署包脚本与 systemd 模板
+└─ .github/           CI 与 Issue / PR 模板
 ```
 
 ## 版本与更新
 
 - 版本号统一由根目录 `version.json` 管理，构建前会校验客户端与服务端版本一致；升版本执行 `node scripts/set-version.mjs 0.2.0`。
 - 客户端打包版启动后会向若道更新源检查新版本，默认自动下载并在退出时安装；也可以点击顶部版本号手动检查和安装。
-- 一键部署的 Linux 服务端会安装 `ruodao-remote-update.timer`：每小时检查，无远控会话时自动安装并重启，健康检查失败自动回滚。客户端「服务端 → 概览 → 版本与更新」可同时查看客户端与服务端版本和更新状态。
+- 一键部署的 Linux 服务端会安装 `ruodao-remote-update.timer`：每小时检查，无远控会话时自动安装并重启，健康检查失败自动回滚。
 - 发布流程、清单格式与全部更新变量见 [更新与发布](docs/更新与发布.md)。
 
-## 反馈
+## 反馈与贡献
 
-遇到问题请先查看 [常见问题](docs/常见问题.md) 和客户端内的「使用指南」。仍然无法解决时，可以在 [Issues](https://github.com/ruodaoai/ruodao-remote/issues) 中反馈，并附上客户端版本、服务器地址类型（本机 / 公网）、错误提示和复现步骤。请勿粘贴远控码、访问密钥、管理员密码或 SSH 私钥。
+- 遇到问题请先查看 [常见问题](docs/常见问题.md) 和客户端内的「使用指南」，仍然无法解决时在 [Issues](https://github.com/ruodaoai/ruodao-remote/issues) 反馈，并附上客户端版本、服务器地址类型（本机 / 公网）、错误提示和复现步骤。
+- **请勿在 Issue 中粘贴远控码、访问密钥、管理员密码或 SSH 私钥。**
+- 想改代码请先读 [贡献指南](CONTRIBUTING.md)：分支、提交规范、测试要求与 PR 检查项都在里面。
 
 ## 许可
 
-本仓库用于产品发布与源码托管，暂未声明开源许可证。未经书面许可，请勿复制、修改或再分发；商业合作或二次开发授权请通过 Issues 联系。
+本项目使用 [MIT License](LICENSE) 开源。你可以自由使用、修改和分发，但需保留版权声明与许可证文本；因使用本软件产生的风险由使用者自行承担。

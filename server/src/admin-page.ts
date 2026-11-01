@@ -33,7 +33,7 @@ a{color:var(--primary)}
 .hero p{color:var(--ink2);margin-top:6px;max-width:680px}
 .hero-meta{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:12px;color:var(--muted)}
 .hero-meta .url{font-family:var(--mono);color:var(--ink2);background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 1px 2px rgba(20,26,38,.04)}
 .stat-label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px}
 .stat-value{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:7px;line-height:1.1}
@@ -232,6 +232,11 @@ tr:hover td{background:#fcfcfd}
         <div class="stat-value" id="stat-invites">0</div>
         <div class="stat-foot">分发给可信用的人</div>
       </div>
+      <div class="stat">
+        <div class="stat-label">剩余远控席位</div>
+        <div class="stat-value" id="stat-capacity">不限</div>
+        <div class="stat-foot" id="stat-capacity-foot">未设置人数上限</div>
+      </div>
     </section>
 
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
@@ -239,6 +244,7 @@ tr:hover td{background:#fcfcfd}
         <button class="tab active" data-tab="clients" type="button">客户端</button>
         <button class="tab" data-tab="invites" type="button">邀请码</button>
         <button class="tab" data-tab="history" type="button">会话历史</button>
+        <button class="tab" data-tab="risk" type="button">风控</button>
         <button class="tab" data-tab="activity" type="button">活动与设置</button>
       </nav>
       <span class="hint" id="updated-at"></span>
@@ -321,6 +327,98 @@ tr:hover td{background:#fcfcfd}
       </div>
     </section>
 
+    <section id="tab-risk" class="layout" hidden>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>远控规则</h2>
+              <span class="sub">保存后立即生效，正在进行的会话不受并发上限影响</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <form id="policy-form" class="settings-grid">
+              <div class="settings-card">
+                <h3>最大同时远控人数</h3>
+                <p>0 表示不限制。达到上限后新的远控申请会收到“服务器已满”的明确提示。</p>
+                <input class="input" id="policy-max" type="number" min="0" max="10000" step="1" value="0" />
+              </div>
+              <div class="settings-card">
+                <h3>单次远控时长上限</h3>
+                <p>单位分钟，0 表示不限制。达到上限会自动结束会话。</p>
+                <input class="input" id="policy-limit" type="number" min="0" max="1440" step="1" value="0" />
+              </div>
+              <div class="settings-card">
+                <h3>结束后冷却时间</h3>
+                <p>达到时长上限后，该用户需要等待的分钟数。</p>
+                <input class="input" id="policy-cooldown" type="number" min="0" max="1440" step="1" value="5" />
+              </div>
+              <div class="settings-card">
+                <h3>默认冻结时长</h3>
+                <p>新增冻结时使用的默认分钟数，也可在拉黑表单中单独指定。</p>
+                <input class="input" id="policy-freeze" type="number" min="1" max="10080" step="1" value="10" />
+              </div>
+              <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px">
+                <button class="btn primary" type="submit" id="policy-submit">保存规则</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>拉黑与冻结</h2>
+              <span class="sub">阻止指定设备或 IP 登录服务器，操作会记入双方日志</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <form id="block-form" class="form-row">
+              <div class="field">
+                <label for="block-kind">类型</label>
+                <select class="select" id="block-kind">
+                  <option value="device">设备 ID</option>
+                  <option value="ip">IP 地址</option>
+                </select>
+              </div>
+              <div class="field grow">
+                <label for="block-value">设备 ID / IP</label>
+                <input class="input" id="block-value" maxlength="64" placeholder="设备 ID 或 1.2.3.4" />
+              </div>
+              <div class="field">
+                <label for="block-duration">时长</label>
+                <select class="select" id="block-duration">
+                  <option value="10">冻结 10 分钟</option>
+                  <option value="30">冻结 30 分钟</option>
+                  <option value="60">冻结 1 小时</option>
+                  <option value="permanent">永久拉黑</option>
+                </select>
+              </div>
+              <div class="field grow">
+                <label for="block-reason">原因</label>
+                <input class="input" id="block-reason" maxlength="120" placeholder="例如：异常远控行为" />
+              </div>
+              <button class="btn primary" type="submit" id="block-submit">添加限制</button>
+            </form>
+            <div class="divider"></div>
+            <div class="invite-list" id="block-list"></div>
+            <div class="empty" id="block-empty" hidden><strong>暂无限制</strong>拉黑或冻结指定设备/IP 后会显示在这里。</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>冷却中的用户</h2>
+            <span class="sub">达到单次远控时长上限后需要等待，可手动解除</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="invite-list" id="cooldown-list"></div>
+          <div class="empty" id="cooldown-empty" hidden><strong>没有冷却中的用户</strong>远控达到时长上限后会自动进入冷却。</div>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-activity" class="layout" hidden>
       <div class="grid-2">
         <div class="card">
@@ -390,6 +488,9 @@ tr:hover td{background:#fcfcfd}
     history: [],
     invites: [],
     activity: [],
+    blocks: [],
+    cooldowns: [],
+    policy: null,
     settings: null,
     update: null,
     filter: "all",
@@ -501,7 +602,10 @@ tr:hover td{background:#fcfcfd}
       "admin-disconnect": "管理员结束",
       "key-rotated": "密钥已轮换",
       "unpublished": "停止共享",
-      "timeout": "连接超时"
+      "timeout": "连接超时",
+      "time-limit": "达到时长上限",
+      "blocked": "已被拉黑",
+      "frozen": "已被冻结"
     };
     return labels[reason] || reason || "—";
   }
@@ -591,7 +695,8 @@ tr:hover td{background:#fcfcfd}
       api("/api/admin/invites"),
       api("/api/admin/activity?limit=80"),
       api("/api/admin/settings"),
-      api("/api/admin/update")
+      api("/api/admin/update"),
+      api("/api/admin/blocks")
     ]).then(function (results) {
       state.overview = results[0];
       state.devices = results[1].devices || [];
@@ -601,6 +706,9 @@ tr:hover td{background:#fcfcfd}
       state.activity = results[5].entries || [];
       state.settings = results[6];
       state.update = results[7].update || null;
+      state.blocks = results[8].blocks || [];
+      state.cooldowns = results[8].cooldowns || [];
+      state.policy = results[8].policy || results[0].policy || null;
       render();
       if (!silent) showApp();
     });
@@ -620,6 +728,11 @@ tr:hover td{background:#fcfcfd}
     text("stat-sessions", stats.activeSessions);
     text("stat-pending", stats.pendingDevices);
     text("stat-invites", stats.activeInvites);
+    text("stat-capacity", stats.remainingSlots === null ? "不限" : stats.remainingSlots);
+    text(
+      "stat-capacity-foot",
+      stats.maxSessions > 0 ? "上限 " + stats.maxSessions + " 人" : "未设置人数上限"
+    );
     text("updated-at", "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour12: false }));
     renderNetwork();
     renderDevices();
@@ -628,6 +741,9 @@ tr:hover td{background:#fcfcfd}
     renderInvites();
     renderActivity();
     renderSettings();
+    renderPolicy();
+    renderBlocks();
+    renderCooldowns();
     renderUpdate();
   }
   function renderNetwork() {
@@ -636,6 +752,7 @@ tr:hover td{background:#fcfcfd}
     var overview = state.overview || {};
     var network = overview.network;
     var security = overview.security || {};
+    var stats = overview.stats || {};
     var riskEl = $("net-risk");
     riskEl.textContent = "";
     if (!network) {
@@ -666,7 +783,13 @@ tr:hover td{background:#fcfcfd}
       ["CPU", Number(network.cpuPct || 0).toFixed(1) + "%", "服务端进程与系统均值"],
       ["1 分钟负载", Number(network.load1 || 0).toFixed(2), "Linux load average"],
       ["信令延迟", Number(network.lagMs || 0).toFixed(1) + " ms", "事件循环采样"],
-      ["内存占用", Number(network.memoryPct || 0).toFixed(1) + "%", Number(network.memoryMb || 0) + " MB RSS"]
+      ["内存占用", Number(network.memoryPct || 0).toFixed(1) + "%", Number(network.memoryMb || 0) + " MB RSS"],
+      ["远控占用码率", rateLabel(stats.sessionKbps || 0), "客户端上报合计"],
+      [
+        "远控席位",
+        (stats.sessions || 0) + " / " + (stats.maxSessions > 0 ? stats.maxSessions : "不限"),
+        stats.remainingSlots === null ? "未设置人数上限" : "还可容纳 " + stats.remainingSlots + " 人"
+      ]
     ];
     metrics.forEach(function (metric) {
       var item = el("div", "net-metric");
@@ -675,7 +798,9 @@ tr:hover td{background:#fcfcfd}
       item.appendChild(el("small", "", metric[2]));
       grid.appendChild(item);
     });
-    var note = "当前 " + state.sessions.length + " 人正在远控 · 已封禁 IP " + (security.activeBans || 0) + " 个";
+    var note = "当前 " + state.sessions.length + " 人正在远控";
+    if (stats.remainingSlots !== null) note += " · 预计还可容纳 " + stats.remainingSlots + " 人";
+    note += " · 已封禁 IP " + (security.activeBans || 0) + " 个";
     if (!network.nicSupported) note += " · 当前系统未暴露网卡计数，仅信令流量可参考";
     text("net-note", note);
   }
@@ -754,6 +879,7 @@ tr:hover td{background:#fcfcfd}
         actions.appendChild(button("移除", "remove", "danger", { id: device.id }));
       } else {
         actions.appendChild(button("禁止远控", "block", "danger", { id: device.id }));
+        actions.appendChild(button("冻结 10 分", "freeze-device", "", { id: device.id, name: device.name || "" }));
         if (device.online) actions.appendChild(button("断开", "disconnect", "", { id: device.id }));
         else actions.appendChild(button("移除", "remove", "", { id: device.id }));
       }
@@ -792,6 +918,11 @@ tr:hover td{background:#fcfcfd}
       var meta = el("div", "session-meta");
       meta.appendChild(el("span", "mono", "远控码 " + session.code));
       meta.appendChild(el("span", "", "已进行 " + duration(session.createdAt)));
+      if (session.endsAt) {
+        meta.appendChild(
+          el("span", "pill amber", "剩余 " + durationMs(Math.max(0, session.endsAt - Date.now())) + " 自动结束")
+        );
+      }
       meta.appendChild(el("span", "", "控制方 IP " + (session.controller.ip || "—")));
       meta.appendChild(button("结束会话", "end-session", "danger", { id: session.id }));
       item.appendChild(meta);
@@ -886,6 +1017,12 @@ tr:hover td{background:#fcfcfd}
       "invite.revoke": "撤销邀请码",
       "invite.remove": "删除邀请码",
       "settings.update": "修改设置",
+      "access.block": "拉黑设备/IP",
+      "access.freeze": "冻结设备/IP",
+      "access.unblock": "解除限制",
+      "access.denied": "风控拦截",
+      "cooldown.clear": "解除冷却",
+      "session.time-limit": "远控达到时长上限",
       "update.check": "检查服务端更新",
       "update.download": "下载服务端更新",
       "update.apply": "应用服务端更新",
@@ -919,6 +1056,70 @@ tr:hover td{background:#fcfcfd}
     $("setting-name").value = settings.serverName;
     text("settings-url", state.settings.publicUrl || "未设置公网地址");
     text("settings-version", "服务端版本 " + state.settings.version);
+  }
+
+  function renderPolicy() {
+    var policy = state.policy || (state.overview && state.overview.policy);
+    if (!policy) return;
+    if (document.activeElement !== $("policy-max")) $("policy-max").value = policy.maxSessions;
+    if (document.activeElement !== $("policy-limit")) $("policy-limit").value = policy.sessionLimitMinutes;
+    if (document.activeElement !== $("policy-cooldown")) $("policy-cooldown").value = policy.cooldownMinutes;
+    if (document.activeElement !== $("policy-freeze")) $("policy-freeze").value = policy.freezeMinutes;
+  }
+
+  function renderBlocks() {
+    var list = $("block-list");
+    list.textContent = "";
+    $("block-empty").hidden = state.blocks.length !== 0;
+    state.blocks.forEach(function (block) {
+      var active = block.expiresAt === null || block.expiresAt > Date.now();
+      var row = el("div", "invite-row");
+      var main = el("div", "invite-main");
+      var title = el("div", "invite-title");
+      title.appendChild(el("span", "pill " + (block.kind === "device" ? "blue" : "gray"), block.kind === "device" ? "设备" : "IP"));
+      title.appendChild(el("strong", "", block.label || block.value));
+      var stateLabel = block.expiresAt === null ? "永久拉黑" : active ? "冻结中" : "已到期";
+      title.appendChild(el("span", "pill " + (block.expiresAt === null ? "red" : active ? "amber" : "gray"), stateLabel));
+      main.appendChild(title);
+      var meta = el("div", "hint");
+      meta.textContent = block.value + " · " + (block.reason || "未填写原因") +
+        " · 创建于 " + new Date(block.createdAt).toLocaleString("zh-CN", { hour12: false });
+      if (block.expiresAt) {
+        meta.textContent += " · 到期 " + new Date(block.expiresAt).toLocaleString("zh-CN", { hour12: false });
+      }
+      main.appendChild(meta);
+      var actions = el("div", "invite-actions");
+      if (active) {
+        actions.appendChild(button("解除限制", "remove-block", "danger", { id: block.id }));
+      }
+      row.appendChild(main);
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+  }
+
+  function renderCooldowns() {
+    var list = $("cooldown-list");
+    list.textContent = "";
+    $("cooldown-empty").hidden = state.cooldowns.length !== 0;
+    state.cooldowns.forEach(function (item) {
+      var row = el("div", "invite-row");
+      var main = el("div", "invite-main");
+      var title = el("div", "invite-title");
+      title.appendChild(el("strong", "", item.label || item.key));
+      title.appendChild(el("span", "pill amber", "冷却中"));
+      main.appendChild(title);
+      var meta = el("div", "hint");
+      meta.textContent = item.key + " · 剩余 " + durationMs(Math.max(0, item.until - Date.now())) +
+        " · " + (item.reason || "达到时长上限") +
+        " · 解冻于 " + new Date(item.until).toLocaleString("zh-CN", { hour12: false });
+      main.appendChild(meta);
+      var actions = el("div", "invite-actions");
+      actions.appendChild(button("解除冷却", "clear-cooldown", "danger", { key: item.key }));
+      row.appendChild(main);
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
   }
 
   function sizeLabel(bytes) {
@@ -1025,6 +1226,21 @@ tr:hover td{background:#fcfcfd}
       .then(function () { toast("已移除客户端"); return loadAll(true); })
       .catch(function (error) { toast(error.message, true); });
   }
+  function freezeDevice(id, name) {
+    if (!window.confirm("冻结后该设备会立即掉线，并在 10 分钟内无法重新接入。确定继续？")) return;
+    api("/api/admin/blocks", {
+      method: "POST",
+      body: {
+        kind: "device",
+        value: id,
+        label: name || id,
+        reason: "管理员快速冻结 10 分钟",
+        minutes: 10
+      }
+    })
+      .then(function () { toast("已冻结该设备 10 分钟"); return loadAll(true); })
+      .catch(function (error) { toast(error.message, true); });
+  }
   function endSession(id) {
     if (!window.confirm("确定结束这个远程会话？")) return;
     api("/api/admin/sessions/" + encodeURIComponent(id) + "/end", { method: "POST" })
@@ -1052,7 +1268,7 @@ tr:hover td{background:#fcfcfd}
       document.querySelectorAll(".tab[data-tab]").forEach(function (item) { item.classList.remove("active"); });
       tab.classList.add("active");
       var name = tab.getAttribute("data-tab");
-      ["clients", "invites", "history", "activity"].forEach(function (key) {
+      ["clients", "invites", "history", "risk", "activity"].forEach(function (key) {
         $("tab-" + key).hidden = key !== name;
       });
     });
@@ -1072,6 +1288,7 @@ tr:hover td{background:#fcfcfd}
     var action = target.getAttribute("data-action");
     if (action === "approve") updateDevice(id, "approved");
     else if (action === "block") updateDevice(id, "blocked");
+    else if (action === "freeze-device") freezeDevice(id, target.getAttribute("data-name"));
     else if (action === "disconnect") disconnectDevice(id);
     else if (action === "remove") removeDevice(id);
   });
@@ -1138,6 +1355,79 @@ tr:hover td{background:#fcfcfd}
     }).finally(function () {
       submit.disabled = false;
     });
+  });
+
+  $("policy-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var submit = $("policy-submit");
+    submit.disabled = true;
+    api("/api/admin/settings", {
+      method: "PATCH",
+      body: {
+        policy: {
+          maxSessions: Number($("policy-max").value),
+          sessionLimitMinutes: Number($("policy-limit").value),
+          cooldownMinutes: Number($("policy-cooldown").value),
+          freezeMinutes: Number($("policy-freeze").value)
+        }
+      }
+    }).then(function () {
+      toast("远控规则已保存，立即生效");
+      return loadAll(true);
+    }).catch(function (error) {
+      toast(error.message, true);
+    }).finally(function () {
+      submit.disabled = false;
+    });
+  });
+
+  $("block-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var value = $("block-value").value.trim();
+    if (!value) return;
+    var duration = $("block-duration").value;
+    var permanent = duration === "permanent";
+    if (permanent && !window.confirm("永久拉黑后该设备/IP 将无法登录服务器，需要手动解除。确定继续？")) return;
+    var submit = $("block-submit");
+    submit.disabled = true;
+    api("/api/admin/blocks", {
+      method: "POST",
+      body: {
+        kind: $("block-kind").value,
+        value: value,
+        label: value,
+        reason: $("block-reason").value.trim(),
+        permanent: permanent,
+        minutes: permanent ? undefined : Number(duration)
+      }
+    }).then(function () {
+      $("block-value").value = "";
+      $("block-reason").value = "";
+      toast(permanent ? "已永久拉黑" : "已冻结该设备/IP");
+      return loadAll(true);
+    }).catch(function (error) {
+      toast(error.message, true);
+    }).finally(function () {
+      submit.disabled = false;
+    });
+  });
+
+  $("block-list").addEventListener("click", function (event) {
+    var target = event.target.closest("button[data-action='remove-block']");
+    if (!target) return;
+    if (!window.confirm("解除后该设备/IP 可以重新登录服务器。确定继续？")) return;
+    api("/api/admin/blocks/" + encodeURIComponent(target.getAttribute("data-id")), { method: "DELETE" })
+      .then(function () { toast("已解除限制"); return loadAll(true); })
+      .catch(function (error) { toast(error.message, true); });
+  });
+
+  $("cooldown-list").addEventListener("click", function (event) {
+    var target = event.target.closest("button[data-action='clear-cooldown']");
+    if (!target) return;
+    if (!window.confirm("解除后该用户可立即再次发起远控。确定继续？")) return;
+    api("/api/admin/cooldowns/" + encodeURIComponent(target.getAttribute("data-key")), { method: "DELETE" })
+      .then(function () { toast("已解除冷却"); return loadAll(true); })
+      .catch(function (error) { toast(error.message, true); });
   });
 
   $("update-check").addEventListener("click", function () {

@@ -1,0 +1,73 @@
+name: 缺陷报告 / Bug report
+description: 客户端或服务端出现问题 / Something is broken in the client or server
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **请勿提交远控码、访问密钥、管理员密码、邀请码或 SSH 私钥。**
+        Never paste remote codes, access keys, admin passwords, invite codes or SSH private keys.
+        安全问题请按 SECURITY.md 私下反馈。
+  - type: dropdown
+    id: component
+    attributes:
+      label: 组件 / Component
+      options:
+        - 客户端：本机被控 / Client: host
+        - 客户端：控制远程设备 / Client: controller
+        - 客户端：共享服务器 / Client: shared servers
+        - 客户端：服务端管理 / Client: server tab
+        - 客户端：更新 / Client: updates
+        - 服务端 / Server
+        - 文档 / Documentation
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+      placeholder: 客户端 v0.1.0；服务端 GET /api/version 返回的 version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境 / Environment
+      placeholder: Windows 11 23H2 x64；服务端 Ubuntu 22.04（HTTPS + coturn）
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: 网络场景 / Network
+      options:
+        - 同一台机器 / Same machine
+        - 局域网 / LAN
+        - 公网直连 / Internet, direct
+        - 公网 + TURN / Internet with TURN
+        - 不清楚 / Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      placeholder: |
+        1. 打开客户端，点击「开始被控」
+        2. 主控端输入远控码与密钥
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期与实际 / Expected vs actual
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图 / Logs or screenshots
+      description: 可附 `journalctl -u ruodao-remote -n 100` 的相关片段（请先脱敏）
+    validations:
+      required: false

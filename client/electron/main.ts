@@ -50,12 +50,25 @@ import {
 } from "./deploy";
 import { registerAssistantIpc } from "./assistant";
 import { registerCommunityIpc } from "./community";
+import { registerSharedServersIpc } from "./shared-servers";
 import { initializeUpdater, installOnQuit, shutdownUpdater } from "./updater";
 import { appendSessionLog, listSessionLogs, openSessionLogFolder } from "./session-log";
+
+// Electron mirrors main-process errors to stdio; if the launching console pipe
+// is gone, that write itself throws EPIPE and surfaces as a crash dialog.
+for (const stream of [process.stdout, process.stderr]) {
+  stream?.on("error", () => {
+    // Logging is best-effort for a GUI app; never fail because stdio closed.
+  });
+}
 
 const smokeDir = process.env.REMOTE_SMOKE_DIR?.trim();
 if (smokeDir) {
   app.setPath("userData", path.join(smokeDir, "userdata"));
+}
+const userDataDir = process.env.REMOTE_USER_DATA_DIR?.trim();
+if (userDataDir) {
+  app.setPath("userData", path.resolve(userDataDir));
 }
 
 app.setAppUserModelId("com.ruodao.remote");
@@ -175,6 +188,7 @@ ipcMain.handle("display:primary", () => {
 
 registerAssistantIpc();
 registerCommunityIpc();
+registerSharedServersIpc();
 
 ipcMain.handle("session-log:append", (_event, value: unknown) => appendSessionLog(value));
 

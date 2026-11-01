@@ -623,6 +623,7 @@ export function useHost(
       platform: message.controller.platform,
       ip: message.controller.ip,
       startedAt,
+      endsAt: message.endsAt ?? null,
     });
     try {
       if (!engine.stream) throw new Error("屏幕画面不可用");
@@ -789,7 +790,7 @@ export function useHost(
         break;
       case "peer.left":
         teardownPeer(message.reason || "peer-left");
-        notifyRef.current(peerLeftMessage(message.reason), "info");
+        notifyRef.current(peerLeftMessage(message.reason, message.cooldownUntil), "info");
         break;
       case "error":
         if (message.code === "device-pending") {
@@ -797,15 +798,16 @@ export function useHost(
           startApprovalPolling(gen);
           break;
         }
-        if (message.code === "device-blocked") {
+        if (message.code === "device-blocked" || message.code === "device-frozen") {
           engine.stopped = true;
           engine.publishWanted = false;
           setPublishedState(false);
           setPublishBusy(false);
           setRequests([]);
           closeClient();
-          const text = accessErrorMessage("blocked", message.message);
-          setAccessIssue("blocked");
+          const frozen = message.code === "device-frozen";
+          const text = accessErrorMessage(frozen ? "frozen" : "blocked", message.message);
+          setAccessIssue(frozen ? "frozen" : "blocked");
           setError(text);
           setPhase("error");
           notifyRef.current(text, "error");

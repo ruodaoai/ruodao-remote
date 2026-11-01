@@ -210,6 +210,16 @@ export function ServerIcon(props: IconProps) {
   );
 }
 
+export function GlobeIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3.2 9.4h17.6M3.2 14.6h17.6" />
+      <path d="M12 3c2.4 2.4 3.6 5.4 3.6 9s-1.2 6.6-3.6 9c-2.4-2.4-3.6-5.4-3.6-9S9.6 5.4 12 3Z" />
+    </svg>
+  );
+}
+
 export function KeyboardIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

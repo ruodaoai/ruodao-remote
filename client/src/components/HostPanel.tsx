@@ -319,6 +319,7 @@ function ActiveSession({
   onSendChat: (text: string) => boolean;
 }) {
   const elapsed = useElapsed(session.startedAt);
+  const remainingMs = session.endsAt ? Math.max(0, session.endsAt - Date.now()) : null;
   const [chatOpen, setChatOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const lastChatCountRef = useRef(0);
@@ -387,6 +388,12 @@ function ActiveSession({
           <span className="meta-label">来源 IP</span>
           <span>{session.ip || "未知"}</span>
         </div>
+        {remainingMs !== null && (
+          <div>
+            <span className="meta-label">剩余时长</span>
+            <span>{formatDuration(Math.floor(remainingMs / 1000))}</span>
+          </div>
+        )}
       </div>
       <div className="host-session-tools">
         <button

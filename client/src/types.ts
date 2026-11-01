@@ -109,6 +109,7 @@ export interface HostSessionInfo {
   platform: string;
   ip?: string;
   startedAt: number;
+  endsAt?: number | null;
 }
 
 export interface SessionStats {
@@ -127,13 +128,20 @@ export interface ServerStats {
   bandwidthOutKbps: number;
   wsInKbps: number;
   wsOutKbps: number;
+  sessionKbps: number;
   sessions: number;
+  maxSessions: number;
+  remainingSlots: number | null;
   peers: number;
   load1: number;
   cpuPct: number;
   lagMs: number;
   memoryPct: number;
   uptimeSeconds: number;
+  sessionLimitMinutes: number;
+  cooldownMinutes: number;
+  activeBlocks: number;
+  activeCooldowns: number;
 }
 
 export interface SessionLogDangerEvent {
@@ -281,6 +289,33 @@ export interface AdminServerInfo {
   startedAt?: number;
 }
 
+export interface ServerPolicy {
+  maxSessions: number;
+  sessionLimitMinutes: number;
+  cooldownMinutes: number;
+  freezeMinutes: number;
+}
+
+export type AccessBlockKind = "device" | "ip";
+
+export interface AccessBlock {
+  id: string;
+  kind: AccessBlockKind;
+  value: string;
+  label: string;
+  reason: string;
+  createdAt: number;
+  createdBy: string;
+  expiresAt: number | null;
+}
+
+export interface CooldownRecord {
+  key: string;
+  label: string;
+  until: number;
+  reason: string;
+}
+
 export interface AdminStats {
   peers: number;
   hosts: number;
@@ -291,6 +326,13 @@ export interface AdminStats {
   blockedDevices: number;
   activeSessions: number;
   activeInvites: number;
+  publishedHosts?: number;
+  pendingRequests?: number;
+  sessionKbps?: number;
+  maxSessions?: number;
+  remainingSlots?: number | null;
+  activeCooldowns?: number;
+  activeBlocks?: number;
 }
 
 export interface AdminNetworkInfo {
@@ -319,6 +361,9 @@ export interface AdminOverview {
   stats: AdminStats;
   network?: AdminNetworkInfo | null;
   security?: AdminSecurityInfo;
+  policy?: ServerPolicy;
+  blocks?: AccessBlock[];
+  cooldowns?: CooldownRecord[];
 }
 
 export interface AdminDevice {
@@ -369,6 +414,7 @@ export interface AdminSessionInfo {
   id: string;
   code: string;
   createdAt: number;
+  endsAt?: number | null;
   durationMs: number;
   telemetry: AdminSessionTelemetry | null;
   dangerEvents: SessionLogDangerEvent[];
@@ -437,6 +483,62 @@ export interface AssistantReply {
   model: string;
   modelConfigId: string;
   usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null;
+}
+
+export type SharedServerSort = "recommended" | "newest" | "expiring";
+
+export interface SharedServerInfo {
+  id: string;
+  name: string;
+  address: string;
+  host: string;
+  region: string;
+  specs: string;
+  maxDevices: number | null;
+  inviteCode: string;
+  note: string;
+  expiresAt: string;
+  status: string;
+  online: boolean;
+  healthStatus: string;
+  serverVersion: string;
+  registrationMode: string;
+  peers: number | null;
+  sessions: number | null;
+  lastCheckedAt: string | null;
+  createdAt: string | null;
+}
+
+export interface SharedServerPage {
+  items: SharedServerInfo[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface SharedServerFormInput {
+  name: string;
+  address: string;
+  region: string;
+  specs: string;
+  maxDevices: number | null;
+  inviteCode: string;
+  note: string;
+  expiresAt: string;
+}
+
+export interface SharedServerMineEntry {
+  id: string;
+  addedAt: number;
+  syncedAt: number;
+  gone: boolean;
+  server: SharedServerInfo | null;
+  error: string | null;
+}
+
+export interface SharedServerMineState {
+  entries: SharedServerMineEntry[];
+  refreshedAt: number | null;
 }
 
 export type CommunitySource = "plugin-market" | "ecosystem";

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { createRemoteServer, type RemoteServer } from "../src/server";
 import type { RegistrationMode, ServerMessage } from "../src/protocol";
+import type { ServerPolicy } from "../src/store";
 import { deriveKeyHash, generateSaltHex } from "../src/security";
 import type { LoginGuardOptions } from "../src/security";
 import type { ServerUpdateOptions } from "../src/update";
@@ -109,6 +110,7 @@ interface StartOptions {
   healthToken?: string;
   adminPath?: string;
   update?: Omit<ServerUpdateOptions, "log">;
+  policy?: Partial<ServerPolicy>;
 }
 
 async function startServer(options: StartOptions = {}): Promise<RemoteServer> {
@@ -125,6 +127,7 @@ async function startServer(options: StartOptions = {}): Promise<RemoteServer> {
     controlTokenTtlMs: options.controlTokenTtlMs,
     healthToken: options.healthToken,
     adminPath: options.adminPath,
+    policy: options.policy,
     securityLogFile: null,
     update: options.update,
   });
@@ -973,5 +976,141 @@ describe("server update endpoints", () => {
     expect(appliedBody.result.command).toContain("systemctl restart");
 
     await fs.rm(stageDir, { recursive: true, force: true });
+  });
+});
+
+describe("risk control", () => {
+  async function pair(
+    port: number,
+    host: { code: string; keyHash: string; client: TestClient },
+    name: string,
+  ) {
+    const controller = await connectController(port, name);
+    controller.send({ type: "controller.lookup", code: host.code });
+    await controller.next("controller.challenge");
+    controller.send({
+      type: "controller.connect",
+      code: host.code,
+      keyHash: host.keyHash,
+      controllerName: name,
+      platform: "win32",
+    });
+    return controller;
+  }
+
+  it("rejects new controllers when the concurrent session limit is reached", async () => {
+    const server = await startServer({ policy: { maxSessions: 1 } });
+    const port = portOf(server);
+    const host = await registerHost(port);
+
+    const first = await pair(port, host, "First");
+    await first.next("controller.paired");
+    await host.client.next("host.paired");
+
+    const second = await connectController(port, "Second");
+    second.send({ type: "controller.lookup", code: host.code });
+    await second.next("controller.challenge");
+    second.send({
+      type: "controller.connect",
+      code: host.code,
+      keyHash: host.keyHash,
+      controllerName: "Second",
+      platform: "win32",
+    });
+    const full = await second.next("controller.rejected");
+    expect(full.reason).toBe("server-full");
+    expect(full.message).toContain("上限");
+
+    first.send({ type: "controller.disconnect" });
+    await host.client.next("peer.left");
+
+    second.send({ type: "controller.lookup", code: host.code });
+    await second.next("controller.challenge");
+    second.send({
+      type: "controller.connect",
+      code: host.code,
+      keyHash: host.keyHash,
+      controllerName: "Second",
+      platform: "win32",
+    });
+    await second.next("controller.paired");
+    await host.client.next("host.paired");
+  });
+
+  it("blocks a device from logging in and exposes limits in server info", async () => {
+    const server = await startServer({ adminPassword: "risk-pass-123" });
+    const port = portOf(server);
+    const token = await adminLogin(port, "risk-pass-123");
+    const deviceId = randomUUID();
+
+    const info = await fetch(`http://127.0.0.1:${port}/api/server-info`);
+    expect(info.status).toBe(200);
+    const infoBody = (await info.json()) as {
+      maxSessions: number;
+      remainingSlots: number | null;
+      acceptingSessions: boolean;
+    };
+    expect(infoBody.maxSessions).toBe(0);
+    expect(infoBody.remainingSlots).toBeNull();
+    expect(infoBody.acceptingSessions).toBe(true);
+
+    const controller = await connectClient(port);
+    await sendHello(controller, { deviceId, name: "Blocked Device" });
+
+    const blocked = await fetch(`http://127.0.0.1:${port}/api/admin/blocks`, {
+      method: "POST",
+      headers: adminHeaders(token),
+      body: JSON.stringify({ kind: "device", value: deviceId, permanent: true }),
+    });
+    expect(blocked.status).toBe(201);
+
+    const reconnect = await connectClient(port);
+    const rejected = await sendHello(reconnect, {
+      deviceId,
+      name: "Blocked Device",
+      expectRejection: true,
+    });
+    if (rejected.type !== "client.rejected") throw new Error("期望客户端被拒绝");
+    expect(rejected.reason).toBe("blocked");
+
+    const list = await fetch(`http://127.0.0.1:${port}/api/admin/blocks`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const listBody = (await list.json()) as { blocks: Array<{ value: string }> };
+    expect(listBody.blocks.some((block) => block.value === deviceId)).toBe(true);
+  });
+
+  it("persists and reports policy limits through the admin API", async () => {
+    const server = await startServer({ adminPassword: "policy-pass-123" });
+    const port = portOf(server);
+    const token = await adminLogin(port, "policy-pass-123");
+
+    const patched = await fetch(`http://127.0.0.1:${port}/api/admin/settings`, {
+      method: "PATCH",
+      headers: adminHeaders(token),
+      body: JSON.stringify({
+        maxSessions: 3,
+        sessionLimitMinutes: 30,
+        cooldownMinutes: 5,
+        freezeMinutes: 10,
+      }),
+    });
+    expect(patched.status).toBe(200);
+    const patchedBody = (await patched.json()) as {
+      policy: { maxSessions: number; sessionLimitMinutes: number };
+    };
+    expect(patchedBody.policy.maxSessions).toBe(3);
+    expect(patchedBody.policy.sessionLimitMinutes).toBe(30);
+
+    const overview = await fetch(`http://127.0.0.1:${port}/api/admin/overview`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const overviewBody = (await overview.json()) as {
+      policy: { maxSessions: number; cooldownMinutes: number };
+      stats: { remainingSlots: number | null; maxSessions: number };
+    };
+    expect(overviewBody.policy.cooldownMinutes).toBe(5);
+    expect(overviewBody.stats.maxSessions).toBe(3);
+    expect(overviewBody.stats.remainingSlots).toBe(3);
   });
 });

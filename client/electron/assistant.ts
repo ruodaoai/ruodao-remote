@@ -309,30 +309,34 @@ export function peekAssistantLease(): AssistantLease | null {
 }
 
 /** 需要登录的接口使用：必要时先刷新令牌。 */
-export async function acquireAssistantLease(): Promise<AssistantLease> {
+export async function acquireAssistantLease(
+  message = "请先登录若道账号后再留言。",
+): Promise<AssistantLease> {
   ensureLoaded();
-  if (!session || session.expired) throw authError("请先登录若道账号后再留言。");
+  if (!session || session.expired) throw authError(message);
   if (tokenNeedsRefresh(session.token)) {
     try {
       await refreshSession(true);
     } catch {
-      throw authError("若道登录已过期，请重新登录后再留言。");
+      throw authError(message);
     }
   }
-  if (!session || session.expired) throw authError("请先登录若道账号后再留言。");
+  if (!session || session.expired) throw authError(message);
   return leaseOf(session);
 }
 
 /** 接口返回 401 时强制换一次令牌，避免沿用已失效的会话。 */
-export async function forceRefreshAssistantLease(): Promise<AssistantLease> {
+export async function forceRefreshAssistantLease(
+  message = "若道登录已过期，请重新登录后再留言。",
+): Promise<AssistantLease> {
   ensureLoaded();
-  if (!session || session.expired) throw authError("若道登录已过期，请重新登录后再留言。");
+  if (!session || session.expired) throw authError(message);
   try {
     await refreshSession(true);
   } catch {
-    throw authError("若道登录已过期，请重新登录后再留言。");
+    throw authError(message);
   }
-  if (!session || session.expired) throw authError("若道登录已过期，请重新登录后再留言。");
+  if (!session || session.expired) throw authError(message);
   return leaseOf(session);
 }
 

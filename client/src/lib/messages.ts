@@ -16,6 +16,12 @@ export function rejectMessage(reason: string): string {
       return "本机正在等待管理员批准，暂时还不能远控。";
     case "device-blocked":
       return "管理员已禁止本机发起远控，请联系服务器管理员。";
+    case "device-frozen":
+      return "本机已被管理员临时冻结，请稍后再试。";
+    case "server-full":
+      return "服务器当前远控人数已满，请等待他人结束后再试。";
+    case "cooldown":
+      return "本次远控已达到时长上限，请等待冷却结束后再试。";
     default:
       return "连接被拒绝，请稍后再试。";
   }
@@ -29,6 +35,8 @@ export function accessErrorMessage(reason: string, fallback: string): string {
       return fallback || "邀请码无效或已过期，请向管理员获取新的邀请码后重试。";
     case "blocked":
       return fallback || "管理员已禁止此客户端进行远控，如需恢复请联系服务器管理员。";
+    case "frozen":
+      return fallback || "此客户端已被管理员临时冻结，请稍后重新连接。";
     case "device-pending":
       return "服务器正在等待管理员批准此客户端，批准后会自动继续。";
     case "admin-disconnect":
@@ -42,7 +50,7 @@ export function accessErrorMessage(reason: string, fallback: string): string {
   }
 }
 
-export function peerLeftMessage(reason: string): string {
+export function peerLeftMessage(reason: string, cooldownUntil?: number): string {
   switch (reason) {
     case "controller-left":
       return "对方已结束控制";
@@ -54,6 +62,17 @@ export function peerLeftMessage(reason: string): string {
       return "对方已离线";
     case "admin-disconnect":
       return "管理员已结束此会话";
+    case "time-limit": {
+      if (cooldownUntil) {
+        const minutes = Math.max(1, Math.ceil((cooldownUntil - Date.now()) / 60_000));
+        return `已达到本次远控时长上限，请 ${minutes} 分钟后重试`;
+      }
+      return "已达到本次远控时长上限，会话已结束";
+    }
+    case "blocked":
+      return "此设备已被管理员拉黑，连接已结束";
+    case "frozen":
+      return "此设备已被管理员冻结，连接已结束";
     default:
       return "远程会话已结束";
   }

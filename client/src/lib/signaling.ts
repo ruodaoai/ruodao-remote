@@ -28,13 +28,26 @@ export interface ServerStatsInfo {
   bandwidthOutKbps: number;
   wsInKbps: number;
   wsOutKbps: number;
+  sessionKbps: number;
   sessions: number;
+  maxSessions: number;
+  remainingSlots: number | null;
   peers: number;
   load1: number;
   cpuPct: number;
   lagMs: number;
   memoryPct: number;
   uptimeSeconds: number;
+  sessionLimitMinutes: number;
+  cooldownMinutes: number;
+  activeBlocks: number;
+  activeCooldowns: number;
+}
+
+export interface ServerLimitsInfo {
+  maxSessions: number;
+  sessionLimitMinutes: number;
+  cooldownMinutes: number;
 }
 
 export interface CatalogHost {
@@ -61,6 +74,9 @@ export type ControlDenyReason =
   | "rate-limited"
   | "device-pending"
   | "device-blocked"
+  | "device-frozen"
+  | "server-full"
+  | "cooldown"
   | "already-session"
   | "already-pending"
   | "expired"
@@ -79,6 +95,7 @@ export type ClientRejectReason =
   | "invite-required"
   | "invite-invalid"
   | "blocked"
+  | "frozen"
   | "device-pending"
   | "invalid-hello"
   | "admin-disconnect";
@@ -97,6 +114,7 @@ export interface WelcomeInfo {
   registrationMode: RegistrationMode;
   serverName: string;
   publicUrl: string;
+  limits?: ServerLimitsInfo;
 }
 
 export type ClientMessage =
@@ -149,7 +167,10 @@ export type RejectReason =
   | "self"
   | "host-offline"
   | "device-pending"
-  | "device-blocked";
+  | "device-blocked"
+  | "device-frozen"
+  | "server-full"
+  | "cooldown";
 
 export type ServerMessage =
   | WelcomeInfo
@@ -161,6 +182,7 @@ export type ServerMessage =
       sessionId: string;
       controller: PeerProfile;
       iceServers: IceServer[];
+      endsAt?: number | null;
     }
   | {
       type: "controller.challenge";
@@ -173,6 +195,7 @@ export type ServerMessage =
       sessionId: string;
       host: PeerProfile;
       iceServers: IceServer[];
+      endsAt?: number | null;
     }
   | { type: "controller.rejected"; reason: RejectReason; message: string }
   | { type: "host.publish-state"; published: boolean; note: string }
@@ -201,7 +224,7 @@ export type ServerMessage =
       message: string;
     }
   | { type: "signal"; data: unknown }
-  | { type: "peer.left"; reason: string }
+  | { type: "peer.left"; reason: string; cooldownUntil?: number }
   | { type: "server.stats"; stats: ServerStatsInfo }
   | { type: "error"; code: string; message: string }
   | { type: "pong" };
