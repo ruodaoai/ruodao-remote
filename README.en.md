@@ -16,7 +16,7 @@
 [FAQ](docs/en/faq.md)
 
 <p align="center">
-  <img src="docs/images/01-host.png" alt="Ruodao Remote client: host page with a 9-digit remote code and 10-character access key" width="880">
+  <img src="docs/images/en/01-host.png" alt="Ruodao Remote client: host page with a 9-digit remote code and 10-character access key" width="880">
 </p>
 
 ## Why Ruodao Remote
@@ -28,6 +28,7 @@
 | **Your own server** | Signaling, device approval, invite codes and audit logs live on your machine. Use the built-in Windows server on a LAN, or deploy to a Linux box in one click from the client. |
 | **Collaboration built in** | In-session chat, on-demand clipboard sync, quality and zoom presets, pause input at any time. Share a device with members of the same server and approve each request. |
 | **Shared server directory** | The *Shared servers* tab lists community-published signaling servers, sorted by availability, latency and expiry; one click writes the address and invite code into your local settings. You can also publish your own server, update it, take it down or report a broken one. |
+| **English and Chinese UI** | The interface ships in Simplified Chinese and English, switchable under *Settings → Language*; the first launch follows the system locale. Labels, the built-in guide, errors and notices are translated together. |
 | **Help when things break** | Scenario-based guide, diagnostics driven by the current state, and an optional AI assistant (after signing in with a Ruodao account, screenshots supported). |
 | **Community feedback** | The built-in *Community* tab mirrors ratings and comments from the Ruodao plugin market. It shares the same Ruodao account session as the shared server directory. |
 | **Maintained over time** | Both the client and the Linux server check the Ruodao release API; every package is verified with SHA-256. The client downloads automatically and installs on exit; the deployed server uses a systemd timer that updates while idle and rolls back on failure. |
@@ -36,15 +37,15 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/02-control.png" alt="Control another computer"><br><sub><b>Connect to another machine</b>: enter the 9-digit code and 10-character key — no account required.</sub></td>
-    <td width="50%"><img src="docs/images/04-shared.png" alt="Shared servers"><br><sub><b>Shared servers</b>: community signaling servers with address and invite code unlocked after sign-in.</sub></td>
+    <td width="50%"><img src="docs/images/en/02-control.png" alt="Control another computer"><br><sub><b>Connect to another machine</b>: enter the 9-digit code and 10-character key — no account required.</sub></td>
+    <td width="50%"><img src="docs/images/en/04-shared.png" alt="Shared servers"><br><sub><b>Shared servers</b>: community signaling servers with address and invite code unlocked after sign-in.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/03-server.png" alt="Server management"><br><sub><b>Server management</b>: sign in to your own signaling server and manage devices, invite codes, sessions and audit logs.</sub></td>
-    <td width="50%"><img src="docs/images/05-guide.png" alt="Built-in guide"><br><sub><b>Built-in guide</b>: step-by-step scenarios, diagnostics and the AI assistant.</sub></td>
+    <td width="50%"><img src="docs/images/en/03-server.png" alt="Server management"><br><sub><b>Server management</b>: sign in to your own signaling server and manage devices, invite codes, sessions and audit logs.</sub></td>
+    <td width="50%"><img src="docs/images/en/05-guide.png" alt="Built-in guide"><br><sub><b>Built-in guide</b>: step-by-step scenarios, diagnostics and the AI assistant.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/images/06-settings.png" alt="Settings"><br><sub><b>Settings</b>: server URL, invite code, launch at login, clipboard and auto-update in one dialog.</sub></td>
+    <td colspan="2"><img src="docs/images/en/06-settings.png" alt="Settings"><br><sub><b>Settings</b>: server URL, invite code, launch at login, clipboard and auto-update in one dialog.</sub></td>
   </tr>
 </table>
 

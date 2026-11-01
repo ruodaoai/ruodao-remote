@@ -43,6 +43,8 @@ import type {
   ToastKind,
 } from "../types";
 
+import { t } from "../i18n";
+
 export type ControllerPhase =
   | "idle"
   | "lookup"
@@ -357,7 +359,7 @@ export function useController(
   function setClipboardSync(enabled: boolean): void {
     const engine = engineRef.current;
     if (engine.channel?.readyState !== "open") {
-      notifyRef.current("会话尚未建立，暂时无法同步剪贴板", "info");
+      notifyRef.current(t("会话尚未建立，暂时无法同步剪贴板"), "info");
       return;
     }
     engine.clipboardEnabled = enabled;
@@ -367,9 +369,9 @@ export function useController(
     notifyRef.current(
       enabled
         ? engine.clipboardAllowed
-          ? "剪贴板同步已开启"
-          : "已请求剪贴板同步，等待对方允许"
-        : "已关闭剪贴板同步",
+          ? t("剪贴板同步已开启")
+          : t("已请求剪贴板同步，等待对方允许")
+        : t("已关闭剪贴板同步"),
       "info",
     );
   }
@@ -459,7 +461,7 @@ export function useController(
       } else if (pc.connectionState === "failed") {
         if (gen !== engine.generation) return;
         finalizeSessionLog("connection-failed");
-        setError("无法建立点对点连接，对方可能需要配置 TURN 中转服务器。");
+        setError(t("无法建立点对点连接，对方可能需要配置 TURN 中转服务器。"));
         setPhase("error");
         teardownPeer();
         closeClient();
@@ -537,7 +539,7 @@ export function useController(
             type: "controller.connect",
             code: pending.code,
             keyHash: hash,
-            controllerName: settingsRef.current?.deviceName ?? "若道远程客户端",
+            controllerName: settingsRef.current?.deviceName ?? t("若道远程客户端"),
             platform: detectPlatform(),
           });
         } catch (err) {
@@ -616,12 +618,12 @@ export function useController(
     const engine = engineRef.current;
     if (gen !== engine.generation || engine.manual) return;
     if (engine.phase === "connected") {
-      notifyRef.current("信令连接已断开，画面可能仍可用", "info");
+      notifyRef.current(t("信令连接已断开，画面可能仍可用"), "info");
       return;
     }
     resetSession("server-disconnected");
     setPhase("error");
-    setError("与服务器的连接已断开，请重新连接。");
+    setError(t("与服务器的连接已断开，请重新连接。"));
   }
 
   async function openMemberClient(gen: number): Promise<SignalingClient | null> {
@@ -697,12 +699,12 @@ export function useController(
     const code = normalizeCodeInput(codeInput);
     const key = normalizeKeyInput(keyInput);
     if (!/^\d{9}$/.test(code)) {
-      setError("请输入完整的 9 位远控码");
+      setError(t("请输入完整的 9 位远控码"));
       setPhase("error");
       return;
     }
     if (!isCompleteKey(keyInput)) {
-      setError("请输入完整的 10 位访问密钥（不含 I、O、0、1）");
+      setError(t("请输入完整的 10 位访问密钥（不含 I、O、0、1）"));
       setPhase("error");
       return;
     }
@@ -750,7 +752,7 @@ export function useController(
     });
     if (!sent) {
       closeClient();
-      setError("无法发送远控授权，请检查服务器连接。");
+      setError(t("无法发送远控授权，请检查服务器连接。"));
       setPhase("error");
     }
   }

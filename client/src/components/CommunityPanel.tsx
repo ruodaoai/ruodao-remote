@@ -20,12 +20,15 @@ import {
 } from "./icons";
 import { InlineAlert } from "./ui";
 
+import { t, tf } from "../i18n";
+
+
 interface CommunityPanelProps {
   assistant: AssistantController;
   community: CommunityController;
 }
 
-const RATING_LABELS = ["", "很不满意", "不太满意", "一般", "比较满意", "非常满意"];
+const RATING_LABELS = ["", t("很不满意"), t("不太满意"), t("一般"), t("比较满意"), t("非常满意")];
 const CONTENT_LIMIT = 1000;
 
 function formatAgo(value: string): string {
@@ -33,10 +36,10 @@ function formatAgo(value: string): string {
   const time = Date.parse(value);
   if (!Number.isFinite(time)) return value;
   const diff = Math.max(0, Date.now() - time);
-  if (diff < 60_000) return "刚刚";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
-  if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天前`;
+  if (diff < 60_000) return t("刚刚");
+  if (diff < 3_600_000) return tf("{0} 分钟前", Math.floor(diff / 60_000));
+  if (diff < 86_400_000) return tf("{0} 小时前", Math.floor(diff / 3_600_000));
+  if (diff < 30 * 86_400_000) return tf("{0} 天前", Math.floor(diff / 86_400_000));
   const date = new Date(time);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
     date.getDate(),
@@ -48,7 +51,7 @@ function StarRow({ value, size = 14 }: { value: number; size?: number }) {
   return (
     <span
       className="community-stars"
-      aria-label={value > 0 ? `${value.toFixed(1)} 星` : "尚未评分"}
+      aria-label={value > 0 ? tf("{0} 星", value.toFixed(1)) : t("尚未评分")}
     >
       {[1, 2, 3, 4, 5].map((star) => (
         <StarIcon
@@ -78,7 +81,7 @@ function StarPicker({
       <div
         className="community-star-buttons"
         role="radiogroup"
-        aria-label="评分"
+        aria-label={t("评分")}
         onMouseLeave={() => setHover(0)}
       >
         {[1, 2, 3, 4, 5].map((star) => (
@@ -87,7 +90,7 @@ function StarPicker({
             type="button"
             role="radio"
             aria-checked={value === star}
-            aria-label={`${star} 星`}
+            aria-label={tf("{0} 星", star)}
             data-testid={`community-star-${star}`}
             className={`community-star-button${star <= shown ? " on" : ""}`}
             disabled={disabled}
@@ -128,7 +131,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
   const distribution = summary?.distribution ?? [0, 0, 0, 0, 0];
   const loadedCount = items.length + (myReview ? 1 : 0);
   const hasMore = Boolean(thread && loadedCount < thread.total);
-  const appName = thread?.app.name || "若道远程控制";
+  const appName = thread?.app.name || t("若道远程控制");
 
   useEffect(() => {
     void assistant.ensureLoaded();
@@ -176,7 +179,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
 
   async function deleteReview(review: CommunityReview): Promise<void> {
     if (community.deletingId) return;
-    if (!window.confirm("删除后评分与文字会从应用中移除。确定删除这条留言？")) return;
+    if (!window.confirm(t("删除后评分与文字会从应用中移除。确定删除这条留言？"))) return;
     await community.remove(review.id);
   }
 
@@ -194,11 +197,11 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
             <span className="eyebrow-icon">
               <ChatIcon size={14} />
             </span>
-            社区留言
+            {t("社区留言")}
           </span>
-          <h1>看看大家怎么用若道远程</h1>
+          <h1>{t("看看大家怎么用若道远程")}</h1>
           <p>
-            这里同步若道插件市场「{appName}」的评论区。登录若道账号后，可以直接在客户端里留下体验、更新评分或回复讨论。
+            {t("这里同步若道插件市场「")}{appName}{t("」的评论区。登录若道账号后，可以直接在客户端里留下体验、更新评分或回复讨论。")}
           </p>
         </div>
         <div className="community-heading-actions">
@@ -213,7 +216,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
             ) : (
               <RefreshIcon size={15} />
             )}
-            刷新
+            {t("刷新")}
           </button>
           <button
             type="button"
@@ -221,7 +224,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
             onClick={() => void community.openApp()}
           >
             <LinkIcon size={15} />
-            在若道查看
+            {t("在若道查看")}
           </button>
         </div>
       </div>
@@ -234,15 +237,15 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
           {community.loading && !thread ? (
             <div className="community-loading">
               <span className="spinner large" />
-              <p>正在读取若道插件市场的留言…</p>
+              <p>{t("正在读取若道插件市场的留言…")}</p>
             </div>
           ) : !thread ? (
             <div className="community-empty large">
               <span className="community-empty-icon error">
                 <AlertIcon size={26} />
               </span>
-              <h2>暂时读不到社区留言</h2>
-              <p>{community.error ?? "社区留言暂时不可用，请稍后再试。"}</p>
+              <h2>{t("暂时读不到社区留言")}</h2>
+              <p>{community.error ?? t("社区留言暂时不可用，请稍后再试。")}</p>
               <div className="community-empty-actions">
                 <button
                   type="button"
@@ -255,7 +258,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                   ) : (
                     <RefreshIcon size={16} />
                   )}
-                  重新读取
+                  {t("重新读取")}
                 </button>
                 <button
                   type="button"
@@ -263,7 +266,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                   onClick={() => void community.openMarket()}
                 >
                   <LinkIcon size={16} />
-                  打开插件市场
+                  {t("打开插件市场")}
                 </button>
               </div>
             </div>
@@ -273,14 +276,14 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 <div className="community-score">
                   <strong>{ratingCount > 0 ? ratingAvg.toFixed(1) : "—"}</strong>
                   <StarRow value={ratingAvg} size={16} />
-                  <span>{ratingCount > 0 ? `${ratingCount} 条评分` : "还没有评分"}</span>
+                  <span>{ratingCount > 0 ? tf("{0} 条评分", ratingCount) : t("还没有评分")}</span>
                 </div>
                 <div className="community-bars">
                   {[5, 4, 3, 2, 1].map((star) => {
                     const count = distribution[star - 1] ?? 0;
                     return (
                       <div className="community-bar-row" key={star}>
-                        <span>{star} 星</span>
+                        <span>{star} {t("星")}</span>
                         <i>
                           <b
                             style={{
@@ -296,8 +299,8 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 <div className="community-summary-note">
                   <ShieldIcon size={17} />
                   <div>
-                    <strong>真实安装，真实体验</strong>
-                    <span>“已安装”标记来自若道安装记录，评分会直接影响应用在插件市场的排序。</span>
+                    <strong>{t("真实安装，真实体验")}</strong>
+                    <span>{t("“已安装”标记来自若道安装记录，评分会直接影响应用在插件市场的排序。")}</span>
                   </div>
                 </div>
               </div>
@@ -306,10 +309,10 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 <div className="community-section-head">
                   <div>
                     <ChatIcon size={16} />
-                    <strong>大家的讨论</strong>
-                    <span className="community-count">{thread.total} 条留言</span>
+                    <strong>{t("大家的讨论")}</strong>
+                    <span className="community-count">{thread.total} {t("条留言")}</span>
                   </div>
-                  <span className="community-sort">按最新排序</span>
+                  <span className="community-sort">{t("按最新排序")}</span>
                 </div>
 
                 {items.length === 0 ? (
@@ -317,11 +320,11 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                     <span className="community-empty-icon">
                       <ChatIcon size={24} />
                     </span>
-                    <h2>还没有人留言</h2>
+                    <h2>{t("还没有人留言")}</h2>
                     <p>
                       {signedIn
-                        ? "如果你已经用过若道远程控制，欢迎在右侧写下第一条经验或问题。"
-                        : "登录若道账号后，可以在右侧写下第一条留言。"}
+                        ? t("如果你已经用过若道远程控制，欢迎在右侧写下第一条经验或问题。")
+                        : t("登录若道账号后，可以在右侧写下第一条留言。")}
                     </p>
                   </div>
                 ) : (
@@ -330,7 +333,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                       <article className="community-review" key={review.id}>
                         <header>
                           <span className="community-avatar" aria-hidden>
-                            {review.userLabel.trim().slice(0, 1) || "用"}
+                            {review.userLabel.trim().slice(0, 1) || t("用")}
                           </span>
                           <div className="community-review-who">
                             <strong>
@@ -338,10 +341,10 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                               {review.verified && (
                                 <em
                                   className="community-verified"
-                                  title="评价者安装过该应用"
+                                  title={t("评价者安装过该应用")}
                                 >
                                   <CheckIcon size={11} />
-                                  已安装
+                                  {t("已安装")}
                                 </em>
                               )}
                             </strong>
@@ -358,10 +361,10 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                             disabled={!signedIn || community.helpfulId === review.id}
                             title={
                               !signedIn
-                                ? "登录后可标记这条留言有帮助"
+                                ? t("登录后可标记这条留言有帮助")
                                 : review.helpful
-                                  ? "取消标记"
-                                  : "这条留言有帮助"
+                                  ? t("取消标记")
+                                  : t("这条留言有帮助")
                             }
                             onClick={() => void community.markHelpful(review)}
                           >
@@ -371,18 +374,18 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                               <ThumbUpIcon size={13} />
                             )}
                             <span>
-                              {review.helpfulCount > 0 ? review.helpfulCount : "有帮助"}
+                              {review.helpfulCount > 0 ? review.helpfulCount : t("有帮助")}
                             </span>
                           </button>
                         </header>
                         <p className={`community-review-text${review.content ? "" : " muted"}`}>
-                          {review.content || "只留下了评分。"}
+                          {review.content || t("只留下了评分。")}
                         </p>
                         {review.authorReply && (
                           <div className="community-author-reply">
                             <strong>
                               <ShieldIcon size={12} />
-                              作者回复
+                              {t("作者回复")}
                             </strong>
                             <p>{review.authorReply.content}</p>
                           </div>
@@ -404,7 +407,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                     ) : (
                       <ChevronDownIcon size={16} />
                     )}
-                    {community.loadingMore ? "正在加载…" : "加载更多留言"}
+                    {community.loadingMore ? t("正在加载…") : t("加载更多留言")}
                   </button>
                 )}
               </div>
@@ -416,7 +419,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
           {!assistant.status && assistant.loading ? (
             <div className="community-card community-side-loading">
               <span className="spinner" />
-              <p>正在检查若道登录状态…</p>
+              <p>{t("正在检查若道登录状态…")}</p>
             </div>
           ) : !signedIn ? (
             <form
@@ -427,18 +430,18 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
               }}
             >
               <span className="community-kicker">
-                <UserIcon size={15} /> 若道账号
+                <UserIcon size={15} /> {t("若道账号")}
               </span>
-              <h3>登录后参与讨论</h3>
+              <h3>{t("登录后参与讨论")}</h3>
               <p>
-                登录只用于向若道提交评论，留言会显示你的昵称，作者可以直接回复。同一个若道账号也会解锁共享服务器详情。
+                {t("登录只用于向若道提交评论，留言会显示你的昵称，作者可以直接回复。同一个若道账号也会解锁共享服务器详情。")}
               </p>
               {expired && (
-                <InlineAlert kind="info">登录已过期，请重新输入密码。远控连接不受影响。</InlineAlert>
+                <InlineAlert kind="info">{t("登录已过期，请重新输入密码。远控连接不受影响。")}</InlineAlert>
               )}
               <label className="field">
                 <div className="field-label">
-                  <span>邮箱</span>
+                  <span>{t("邮箱")}</span>
                 </div>
                 <div className="input-shell">
                   <UserIcon size={17} />
@@ -455,7 +458,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
               </label>
               <label className="field">
                 <div className="field-label">
-                  <span>密码</span>
+                  <span>{t("密码")}</span>
                 </div>
                 <div className="input-shell">
                   <LockIcon size={17} />
@@ -464,7 +467,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="若道账号密码"
+                    placeholder={t("若道账号密码")}
                     autoComplete="current-password"
                     maxLength={256}
                   />
@@ -472,7 +475,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                     type="button"
                     className="input-action"
                     onClick={() => setShowPassword((value) => !value)}
-                    aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                    aria-label={showPassword ? t("隐藏密码") : t("显示密码")}
                   >
                     {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                   </button>
@@ -486,7 +489,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 disabled={assistant.loginBusy || !email.trim() || !password}
               >
                 {assistant.loginBusy ? <span className="spinner" /> : <SendIcon size={16} />}
-                {assistant.loginBusy ? "正在登录…" : "登录若道账号"}
+                {assistant.loginBusy ? t("正在登录…") : t("登录若道账号")}
               </button>
               <div className="community-login-links">
                 <button
@@ -494,7 +497,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                   className="text-button"
                   onClick={() => void assistant.openAccount("register")}
                 >
-                  注册若道账号
+                  {t("注册若道账号")}
                 </button>
                 <span>·</span>
                 <button
@@ -502,7 +505,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                   className="text-button"
                   onClick={() => void assistant.openAccount("login")}
                 >
-                  在浏览器中登录
+                  {t("在浏览器中登录")}
                 </button>
               </div>
             </form>
@@ -511,9 +514,9 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
               <span className="community-owner-icon">
                 <ShieldIcon size={19} />
               </span>
-              <h3>这是你发布的应用</h3>
+              <h3>{t("这是你发布的应用")}</h3>
               <p>
-                创作者不能给自己的应用评分。你可以在左侧查看大家的反馈，并在若道应用详情页逐条回复。
+                {t("创作者不能给自己的应用评分。你可以在左侧查看大家的反馈，并在若道应用详情页逐条回复。")}
               </p>
               <button
                 type="button"
@@ -521,7 +524,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 onClick={() => void community.openApp()}
               >
                 <LinkIcon size={15} />
-                在若道回复评论
+                {t("在若道回复评论")}
               </button>
             </div>
           ) : (
@@ -529,9 +532,9 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
               <div className="community-composer-head">
                 <div>
                   <span className="community-kicker">
-                    <ChatIcon size={15} /> 我的留言
+                    <ChatIcon size={15} /> {t("我的留言")}
                   </span>
-                  <h3>{myReview ? "我的评价" : "写下我的使用感受"}</h3>
+                  <h3>{myReview ? t("我的评价") : t("写下我的使用感受")}</h3>
                 </div>
                 {myReview && !editing && (
                   <div className="community-my-actions">
@@ -540,7 +543,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                       className="text-button"
                       onClick={() => setEditing(true)}
                     >
-                      编辑
+                      {t("编辑")}
                     </button>
                     <button
                       type="button"
@@ -548,7 +551,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                       disabled={Boolean(community.deletingId)}
                       onClick={() => void deleteReview(myReview)}
                     >
-                      {community.deletingId === myReview.id ? "删除中…" : "删除"}
+                      {community.deletingId === myReview.id ? t("删除中…") : t("删除")}
                     </button>
                   </div>
                 )}
@@ -561,12 +564,12 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                     <span>{formatAgo(myReview.createdAt)}</span>
                   </div>
                   <p className={myReview.content ? undefined : "muted"}>
-                    {myReview.content || "只留下了评分。"}
+                    {myReview.content || t("只留下了评分。")}
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="community-field-label">给 {appName} 打分</div>
+                  <div className="community-field-label">{t("给")} {appName} {t("打分")}</div>
                   <StarPicker
                     value={rating}
                     disabled={community.submitting}
@@ -578,7 +581,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                       value={content}
                       maxLength={CONTENT_LIMIT}
                       rows={5}
-                      placeholder="这个应用帮你解决了什么问题？也可以写下遇到的问题或希望改进的地方。"
+                      placeholder={t("这个应用帮你解决了什么问题？也可以写下遇到的问题或希望改进的地方。")}
                       onChange={(event) => setContent(event.target.value)}
                     />
                     <span className="community-char-count">
@@ -598,10 +601,10 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                       <SendIcon size={16} />
                     )}
                     {community.submitting
-                      ? "正在提交…"
+                      ? t("正在提交…")
                       : myReview
-                        ? "更新留言"
-                        : "发布留言"}
+                        ? t("更新留言")
+                        : t("发布留言")}
                   </button>
                   {myReview && (
                     <button
@@ -610,12 +613,12 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                       disabled={community.submitting}
                       onClick={cancelEdit}
                     >
-                      取消编辑
+                      {t("取消编辑")}
                     </button>
                   )}
                   <p className="community-composer-hint">
                     <LockIcon size={13} />
-                    评论会公开显示，请不要填写远控码、访问密钥或登录密码。
+                    {t("评论会公开显示，请不要填写远控码、访问密钥或登录密码。")}
                   </p>
                 </>
               )}
@@ -631,14 +634,14 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 <strong>{appName}</strong>
                 <span>
                   {thread?.app.source === "ecosystem"
-                    ? "若道开放生态 · 评论区同步"
-                    : "若道功能插件 · 评论区同步"}
+                    ? t("若道开放生态 · 评论区同步")
+                    : t("若道功能插件 · 评论区同步")}
                 </span>
               </div>
             </div>
             <p>
               {thread?.app.summary ||
-                "用远控码和访问密钥直连的桌面远程控制工具，免注册、不经过第三方中转。"}
+                t("用远控码和访问密钥直连的桌面远程控制工具，免注册、不经过第三方中转。")}
             </p>
             <div className="community-app-actions">
               <button
@@ -647,28 +650,28 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 onClick={() => void community.openApp()}
               >
                 <LinkIcon size={15} />
-                在若道查看
+                {t("在若道查看")}
               </button>
               <button
                 type="button"
                 className="button ghost small"
                 onClick={() => void community.openMarket()}
               >
-                插件市场
+                {t("插件市场")}
               </button>
             </div>
             <ul className="community-rules">
               <li>
                 <EyeIcon size={13} />
-                评论公开显示在若道应用详情页
+                {t("评论公开显示在若道应用详情页")}
               </li>
               <li>
                 <ChatIcon size={13} />
-                作者回复会出现在留言下方
+                {t("作者回复会出现在留言下方")}
               </li>
               <li>
                 <LockIcon size={13} />
-                不要公开远控码与访问密钥
+                {t("不要公开远控码与访问密钥")}
               </li>
             </ul>
           </div>
@@ -677,13 +680,13 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
 
       <div className="panel-foot trust-row">
         <span>
-          <ShieldIcon size={14} /> 登录令牌只保存在本机
+          <ShieldIcon size={14} /> {t("登录令牌只保存在本机")}
         </span>
         <span>
-          <ChatIcon size={14} /> 留言来自若道插件市场评论区
+          <ChatIcon size={14} /> {t("留言来自若道插件市场评论区")}
         </span>
         <span>
-          <LockIcon size={14} /> 评论公开可见，注意保护敏感信息
+          <LockIcon size={14} /> {t("评论公开可见，注意保护敏感信息")}
         </span>
       </div>
     </section>

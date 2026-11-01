@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommunityReview, CommunityThread } from "../types";
 
+import { t } from "../i18n";
+
 export interface CommunityController {
   thread: CommunityThread | null;
   loading: boolean;
@@ -23,7 +25,7 @@ export interface CommunityController {
 }
 
 function cleanCommunityError(error: unknown): string {
-  if (!(error instanceof Error)) return "社区留言暂时不可用，请稍后再试。";
+  if (!(error instanceof Error)) return t("社区留言暂时不可用，请稍后再试。");
   return error.message
     .replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, "")
     .trim();
@@ -120,7 +122,7 @@ export function useCommunity(): CommunityController {
         const next = await window.remote.communitySubmit({ rating, content });
         setThread(next);
         loadedRef.current = true;
-        setNotice(wasUpdate ? "留言已更新。" : "留言已发布，感谢你的反馈。");
+        setNotice(wasUpdate ? t("留言已更新。") : t("留言已发布，感谢你的反馈。"));
         return true;
       } catch (err) {
         setError(cleanCommunityError(err));
@@ -141,7 +143,7 @@ export function useCommunity(): CommunityController {
       try {
         const next = await window.remote.communityDelete({ reviewId });
         setThread(next);
-        setNotice("留言已删除。");
+        setNotice(t("留言已删除。"));
         return true;
       } catch (err) {
         setError(cleanCommunityError(err));

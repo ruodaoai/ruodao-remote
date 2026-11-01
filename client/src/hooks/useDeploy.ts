@@ -7,17 +7,20 @@ import type {
   ToastKind,
 } from "../types";
 
+import { t } from "../i18n";
+
+
 const INITIAL_STEPS: DeployStep[] = [
-  { id: "connect", title: "连接服务器", detail: "验证 SSH 指纹并使用账号登录", status: "pending", note: "" },
-  { id: "inspect", title: "检查系统环境", detail: "确认发行版、磁盘，并规划不冲突的端口", status: "pending", note: "" },
-  { id: "packages", title: "安装运行环境", detail: "准备 Node.js 与独立的 Caddy 入口", status: "pending", note: "" },
-  { id: "turn", title: "配置 TURN 中转", detail: "为复杂网络准备音视频中继", status: "pending", note: "" },
-  { id: "server", title: "部署信令服务", detail: "上传服务端并注册 systemd 服务", status: "pending", note: "" },
-  { id: "proxy", title: "配置网站入口", detail: "由独立 Caddy 反向代理并自动申请 HTTPS", status: "pending", note: "" },
-  { id: "firewall", title: "放行防火墙端口", detail: "只放行本次实际使用的端口", status: "pending", note: "" },
-  { id: "defense", title: "加固入侵防护", detail: "启用 fail2ban、SSH 限速与内核防护", status: "pending", note: "" },
-  { id: "verify", title: "验证公网访问", detail: "检查健康接口与管理员登录", status: "pending", note: "" },
-  { id: "finish", title: "保存配置", detail: "把服务器地址与管理员密码写入本机", status: "pending", note: "" },
+  { id: "connect", title: t("连接服务器"), detail: t("验证 SSH 指纹并使用账号登录"), status: "pending", note: "" },
+  { id: "inspect", title: t("检查系统环境"), detail: t("确认发行版、磁盘，并规划不冲突的端口"), status: "pending", note: "" },
+  { id: "packages", title: t("安装运行环境"), detail: t("准备 Node.js 与独立的 Caddy 入口"), status: "pending", note: "" },
+  { id: "turn", title: t("配置 TURN 中转"), detail: t("为复杂网络准备音视频中继"), status: "pending", note: "" },
+  { id: "server", title: t("部署信令服务"), detail: t("上传服务端并注册 systemd 服务"), status: "pending", note: "" },
+  { id: "proxy", title: t("配置网站入口"), detail: t("由独立 Caddy 反向代理并自动申请 HTTPS"), status: "pending", note: "" },
+  { id: "firewall", title: t("放行防火墙端口"), detail: t("只放行本次实际使用的端口"), status: "pending", note: "" },
+  { id: "defense", title: t("加固入侵防护"), detail: t("启用 fail2ban、SSH 限速与内核防护"), status: "pending", note: "" },
+  { id: "verify", title: t("验证公网访问"), detail: t("检查健康接口与管理员登录"), status: "pending", note: "" },
+  { id: "finish", title: t("保存配置"), detail: t("把服务器地址与管理员密码写入本机"), status: "pending", note: "" },
 ];
 
 export interface DeployLogEntry {
@@ -100,20 +103,20 @@ export function useDeploy({ notify, onDone }: DeployOptions): DeployController {
           setHostKey(null);
           setResult(event.result);
           setPhase("done");
-          notifyRef.current("服务端部署完成，已切换为新的服务器", "success");
+          notifyRef.current(t("服务端部署完成，已切换为新的服务器"), "success");
           void doneRef.current(event.result);
           break;
         case "error":
           setHostKey(null);
           setError(event.message);
           setPhase("error");
-          notifyRef.current("服务器部署未完成，请查看提示", "error");
+          notifyRef.current(t("服务器部署未完成，请查看提示"), "error");
           break;
         case "cancelled":
           setHostKey(null);
           setPhase("idle");
           setSteps((list) => list.map((step) => (step.status === "running" ? { ...step, status: "pending" } : step)));
-          notifyRef.current("已取消服务器部署", "info");
+          notifyRef.current(t("已取消服务器部署"), "info");
           break;
         default:
           break;
@@ -139,7 +142,7 @@ export function useDeploy({ notify, onDone }: DeployOptions): DeployController {
       const message =
         err instanceof Error
           ? err.message.replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, "")
-          : "无法启动部署任务。";
+          : t("无法启动部署任务。");
       setError(message);
       setPhase("error");
     }
@@ -168,7 +171,7 @@ export function useDeploy({ notify, onDone }: DeployOptions): DeployController {
     };
     if (!target.host) return;
     await window.remote.forgetDeployHost({ host: target.host, port: target.port });
-    notifyRef.current("已清除该服务器的指纹记录，可以重新部署", "info");
+    notifyRef.current(t("已清除该服务器的指纹记录，可以重新部署"), "info");
   }, [hostKey]);
 
   const reset = useCallback(() => {

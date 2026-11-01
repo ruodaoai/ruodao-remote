@@ -5,6 +5,8 @@ import type {
   AssistantStatus,
 } from "../types";
 
+import { t } from "../i18n";
+
 export interface AssistantController {
   status: AssistantStatus | null;
   loading: boolean;
@@ -28,7 +30,7 @@ export interface AssistantController {
 }
 
 export function cleanAssistantError(error: unknown): string {
-  if (!(error instanceof Error)) return "AI 助手暂时不可用，请稍后再试。";
+  if (!(error instanceof Error)) return t("AI 助手暂时不可用，请稍后再试。");
   return error.message
     .replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, "")
     .trim();

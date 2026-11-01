@@ -45,6 +45,8 @@ import type {
   ToastKind,
 } from "../types";
 
+import { t, tf } from "../i18n";
+
 export type HostPhase = "idle" | "connecting" | "pending" | "online" | "error";
 
 type HostPairedMessage = Extract<ServerMessage, { type: "host.paired" }>;
@@ -212,7 +214,7 @@ export function useHost(
     }
     engine.client?.send({ type: "session.event", kind: "danger", action });
     if (notifyUser) {
-      notifyRef.current(`检测到对方执行危险操作：${event.label}`, "error");
+      notifyRef.current(tf("检测到对方执行危险操作：{0}", event.label), "error");
     }
   }
 
@@ -385,7 +387,7 @@ export function useHost(
   function toggleInputPause(): void {
     const engine = engineRef.current;
     if (engine.channel?.readyState !== "open") {
-      notifyRef.current("会话尚未建立，暂时无法调整输入权限", "info");
+      notifyRef.current(t("会话尚未建立，暂时无法调整输入权限"), "info");
       return;
     }
     const next = !engine.inputPaused;
@@ -397,13 +399,13 @@ export function useHost(
       window.remote.releaseAllInput();
     }
     sendSessionState();
-    notifyRef.current(next ? "已暂停对方键盘和鼠标输入" : "已恢复对方输入", "info");
+    notifyRef.current(next ? t("已暂停对方键盘和鼠标输入") : t("已恢复对方输入"), "info");
   }
 
   function toggleClipboard(): void {
     const engine = engineRef.current;
     if (engine.channel?.readyState !== "open") {
-      notifyRef.current("会话尚未建立，暂时无法调整剪贴板权限", "info");
+      notifyRef.current(t("会话尚未建立，暂时无法调整剪贴板权限"), "info");
       return;
     }
     engine.clipboardAllowed = !engine.clipboardAllowed;
@@ -411,7 +413,7 @@ export function useHost(
     updateClipboardSync();
     sendSessionState();
     notifyRef.current(
-      engine.clipboardAllowed ? "已允许剪贴板同步，需对方也开启后生效" : "已关闭剪贴板同步",
+      engine.clipboardAllowed ? t("已允许剪贴板同步，需对方也开启后生效") : t("已关闭剪贴板同步"),
       "info",
     );
   }
@@ -436,7 +438,7 @@ export function useHost(
     const engine = engineRef.current;
     const value = note.slice(0, 120);
     if (!engine.client?.isOpen || engine.phase !== "online") {
-      notifyRef.current("请先开始被控，再共享给本服成员", "info");
+      notifyRef.current(t("请先开始被控，再共享给本服成员"), "info");
       return;
     }
     if (nextPublished === engine.publishWanted && (!nextPublished || value === engine.publishNote)) {
@@ -457,22 +459,22 @@ export function useHost(
       })
     ) {
       setPublishBusy(false);
-      notifyRef.current("共享设置发送失败，请检查网络连接", "error");
+      notifyRef.current(t("共享设置发送失败，请检查网络连接"), "error");
     }
   }
 
   function decideRequest(requestId: string, accept: boolean): void {
     const engine = engineRef.current;
     if (!engine.client?.isOpen) {
-      notifyRef.current("与服务器的连接已断开，无法处理申请", "error");
+      notifyRef.current(t("与服务器的连接已断开，无法处理申请"), "error");
       return;
     }
     setRequests((list) => list.filter((item) => item.id !== requestId));
     if (!engine.client.send({ type: "host.control-decision", requestId, accept })) {
-      notifyRef.current("处理申请失败，请检查网络连接", "error");
+      notifyRef.current(t("处理申请失败，请检查网络连接"), "error");
       return;
     }
-    notifyRef.current(accept ? "已同意申请，等待对方建立连接" : "已拒绝该申请", "info");
+    notifyRef.current(accept ? t("已同意申请，等待对方建立连接") : t("已拒绝该申请"), "info");
   }
 
   function sendSignal(gen: number, data: SignalData): void {
@@ -507,7 +509,7 @@ export function useHost(
     const engine = engineRef.current;
     if (gen !== engine.generation || engine.stopped) return;
     setAccessIssue(null);
-    setError("连接服务器失败，正在重试…");
+    setError(t("连接服务器失败，正在重试…"));
     setPhase("connecting");
     scheduleReconnect(gen);
   }
@@ -542,7 +544,7 @@ export function useHost(
     const engine = engineRef.current;
     const current = settingsRef.current;
     const identity = engine.identity;
-    if (!current || !identity) throw new Error("远控密钥尚未准备好");
+    if (!current || !identity) throw new Error(t("远控密钥尚未准备好"));
     closeClient();
     const client = new SignalingClient(signalUrl(current.serverUrl), {
       onMessage: (message) => {
@@ -598,10 +600,10 @@ export function useHost(
     setRequests([]);
     if (!engine.stream) {
       setPhase("error");
-      setError("屏幕共享已停止，请重新开始。");
+      setError(t("屏幕共享已停止，请重新开始。"));
       return;
     }
-    setError("与服务器的连接已断开，正在重连…");
+    setError(t("与服务器的连接已断开，正在重连…"));
     setPhase("connecting");
     scheduleReconnect(gen);
   }
@@ -626,7 +628,7 @@ export function useHost(
       endsAt: message.endsAt ?? null,
     });
     try {
-      if (!engine.stream) throw new Error("屏幕画面不可用");
+      if (!engine.stream) throw new Error(t("屏幕画面不可用"));
       const pc = new RTCPeerConnection({ iceServers: toIceServers(message.iceServers) });
       engine.peer = pc;
       for (const track of engine.stream.getVideoTracks()) {
@@ -663,7 +665,7 @@ export function useHost(
       };
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === "failed") {
-          notifyRef.current("远程连接中断，请让对方重新连接", "error");
+          notifyRef.current(t("远程连接中断，请让对方重新连接"), "error");
           teardownPeer("connection-failed");
         }
       };
@@ -739,7 +741,7 @@ export function useHost(
         break;
       }
       case "host.key-updated":
-        notifyRef.current("新的访问密钥已生效", "success");
+        notifyRef.current(t("新的访问密钥已生效"), "success");
         break;
       case "host.publish-state":
         engine.publishWanted = message.published;
@@ -748,7 +750,7 @@ export function useHost(
         setPublishNoteState(message.note);
         setPublishBusy(false);
         notifyRef.current(
-          message.published ? "已共享给本服成员，等待对方申请" : "已停止共享本机",
+          message.published ? t("已共享给本服成员，等待对方申请") : t("已停止共享本机"),
           "success",
         );
         break;
@@ -758,7 +760,7 @@ export function useHost(
             ? list
             : [...list.slice(-4), message.request],
         );
-        notifyRef.current(`收到“${message.request.controllerName}”的远控申请`, "info");
+        notifyRef.current(tf("收到“{0}”的远控申请", message.request.controllerName), "info");
         break;
       case "host.control-approved":
         setRequests((list) => list.filter((item) => item.id !== message.requestId));
@@ -873,7 +875,7 @@ export function useHost(
       setPreview(stream);
       const videoTrack = stream.getVideoTracks()[0];
       videoTrack?.addEventListener("ended", () => {
-        notifyRef.current("屏幕共享已停止，已自动下线", "info");
+        notifyRef.current(t("屏幕共享已停止，已自动下线"), "info");
         stop();
       });
     }
@@ -927,7 +929,7 @@ export function useHost(
       if (engine.client?.isOpen) {
         engine.client.send({ type: "host.update-key", keySalt: salt, keyHash: hash });
       }
-      notifyRef.current("已生成新的访问密钥", "success");
+      notifyRef.current(t("已生成新的访问密钥"), "success");
     } catch (err) {
       setError(connectionErrorMessage(err));
     } finally {

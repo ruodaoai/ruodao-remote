@@ -30,6 +30,8 @@ import {
 } from "./icons";
 import { HelpTip, InlineAlert, StatusPill } from "./ui";
 
+import { t, tf } from "../i18n";
+
 interface ControlPanelProps {
   phase: ControllerPhase;
   hostName: PeerProfile | null;
@@ -70,27 +72,27 @@ interface ControlPanelProps {
 function statusFor(phase: ControllerPhase): { tone: "idle" | "busy" | "online" | "error"; label: string } {
   switch (phase) {
     case "lookup":
-      return { tone: "busy", label: "正在查找" };
+      return { tone: "busy", label: t("正在查找") };
     case "waiting":
-      return { tone: "busy", label: "等待批准" };
+      return { tone: "busy", label: t("等待批准") };
     case "verifying":
-      return { tone: "busy", label: "正在验证" };
+      return { tone: "busy", label: t("正在验证") };
     case "connecting":
-      return { tone: "busy", label: "建立通道" };
+      return { tone: "busy", label: t("建立通道") };
     case "connected":
-      return { tone: "online", label: "控制中" };
+      return { tone: "online", label: t("控制中") };
     case "error":
-      return { tone: "error", label: "连接失败" };
+      return { tone: "error", label: t("连接失败") };
     default:
-      return { tone: "idle", label: "待连接" };
+      return { tone: "idle", label: t("待连接") };
   }
 }
 
 function ConnectionProgress({ phase, onCancel }: { phase: ControllerPhase; onCancel: () => void }) {
   const steps = [
-    { label: "查找设备", state: phase === "lookup" ? "active" : "done" },
-    { label: "验证访问密钥", state: phase === "lookup" ? "todo" : phase === "verifying" ? "active" : "done" },
-    { label: "建立加密控制通道", state: phase === "connecting" ? "active" : "todo" },
+    { label: t("查找设备"), state: phase === "lookup" ? "active" : "done" },
+    { label: t("验证访问密钥"), state: phase === "lookup" ? "todo" : phase === "verifying" ? "active" : "done" },
+    { label: t("建立加密控制通道"), state: phase === "connecting" ? "active" : "todo" },
   ];
   return (
     <div className="connection-progress">
@@ -111,7 +113,7 @@ function ConnectionProgress({ phase, onCancel }: { phase: ControllerPhase; onCan
         ))}
       </ol>
       <button type="button" className="text-button" onClick={onCancel}>
-        取消连接
+        {t("取消连接")}
       </button>
     </div>
   );
@@ -123,12 +125,12 @@ function ApprovalWait({ onCancel }: { onCancel: () => void }) {
       <div className="approval-wait-head">
         <span className="spinner" />
         <div>
-          <strong>等待管理员批准</strong>
-          <p>此客户端已提交远控请求，服务器管理员批准后会自动继续连接。</p>
+          <strong>{t("等待管理员批准")}</strong>
+          <p>{t("此客户端已提交远控请求，服务器管理员批准后会自动继续连接。")}</p>
         </div>
       </div>
       <button type="button" className="text-button" onClick={onCancel}>
-        取消连接
+        {t("取消连接")}
       </button>
     </div>
   );
@@ -148,7 +150,7 @@ function platformLabel(platform: string): string {
   if (platform === "win32") return "Windows";
   if (platform === "darwin") return "macOS";
   if (platform === "linux") return "Linux";
-  return "未知平台";
+  return t("未知平台");
 }
 
 function SharedCatalog({
@@ -179,18 +181,18 @@ function SharedCatalog({
             <span className="eyebrow-icon">
               <ServerIcon size={14} />
             </span>
-            本服共享
+            {t("本服共享")}
           </span>
-          <h2>共享设备</h2>
-          <p>本服务器成员主动发布的电脑，申请经对方同意后才会建立连接。</p>
+          <h2>{t("共享设备")}</h2>
+          <p>{t("本服务器成员主动发布的电脑，申请经对方同意后才会建立连接。")}</p>
         </div>
         <button
           type="button"
           className="icon-button subtle"
           onClick={onRefresh}
           disabled={status === "loading"}
-          aria-label="刷新共享列表"
-          title="刷新共享列表"
+          aria-label={t("刷新共享列表")}
+          title={t("刷新共享列表")}
         >
           <RefreshIcon size={16} />
         </button>
@@ -200,13 +202,13 @@ function SharedCatalog({
         <div className="catalog-wait" data-testid="catalog-request">
           <span className="spinner small" />
           <div className="catalog-wait-copy">
-            <strong>已向“{request.hostName}”发送远控申请</strong>
+            <strong>{t("已向“")}{request.hostName}{t("”发送远控申请")}</strong>
             <span>
-              等待对方同意，{left > 0 ? `${left} 秒后失效` : "即将失效"}；对方拒绝或超时后可重新申请。
+              {t("等待对方同意，")}{left > 0 ? tf("{0} 秒后失效", left) : t("即将失效")}{t("；对方拒绝或超时后可重新申请。")}
             </span>
           </div>
           <button type="button" className="button ghost small" onClick={onCancelRequest}>
-            取消申请
+            {t("取消申请")}
           </button>
         </div>
       )}
@@ -217,12 +219,12 @@ function SharedCatalog({
         status === "loading" ? (
           <div className="catalog-empty">
             <span className="spinner small" />
-            <span>正在读取共享列表…</span>
+            <span>{t("正在读取共享列表…")}</span>
           </div>
         ) : status === "error" ? null : (
           <div className="catalog-empty">
             <ServerIcon size={18} />
-            <span>还没有成员发布设备。让对方在「本机被控」页打开“共享给本服成员”即可出现在这里。</span>
+            <span>{t("还没有成员发布设备。让对方在「本机被控」页打开“共享给本服成员”即可出现在这里。")}</span>
           </div>
         )
       ) : (
@@ -237,9 +239,9 @@ function SharedCatalog({
                   <div className="catalog-title">
                     <strong>{host.name}</strong>
                     <span className="catalog-tag">{platformLabel(host.platform)}</span>
-                    {host.busy && <span className="catalog-tag busy">正在被控</span>}
+                    {host.busy && <span className="catalog-tag busy">{t("正在被控")}</span>}
                   </div>
-                  <p>{host.note || "未填写共享说明"}</p>
+                  <p>{host.note || t("未填写共享说明")}</p>
                 </div>
                 <button
                   type="button"
@@ -248,13 +250,13 @@ function SharedCatalog({
                   onClick={() => onRequestHost(host)}
                   title={
                     host.busy
-                      ? "对方正在被控，暂时无法申请"
+                      ? t("对方正在被控，暂时无法申请")
                       : request && !requesting
-                        ? "已有待处理的申请"
+                        ? t("已有待处理的申请")
                         : undefined
                   }
                 >
-                  {requesting ? "已申请" : host.busy ? "忙线中" : "申请远控"}
+                  {requesting ? t("已申请") : host.busy ? t("忙线中") : t("申请远控")}
                 </button>
               </li>
             );
@@ -271,7 +273,7 @@ function ConnectAside() {
       <div className="link-visual" aria-hidden="true">
         <div className="mini-screen">
           <MonitorIcon size={22} />
-          <span>本机</span>
+          <span>{t("本机")}</span>
         </div>
         <div className="link-beam">
           <span className="beam-line" />
@@ -281,31 +283,30 @@ function ConnectAside() {
         </div>
         <div className="mini-screen remote">
           <MonitorIcon size={22} />
-          <span>对方</span>
+          <span>{t("对方")}</span>
         </div>
       </div>
-      <h2>优先点对点直连</h2>
+      <h2>{t("优先点对点直连")}</h2>
       <p>
-        同一局域网或网络可直连时，画面不经过服务器中转；无法直连时自动使用
-        TURN 中继，内容仍是端到端加密。
+        {t("同一局域网或网络可直连时，画面不经过服务器中转；无法直连时自动使用\n        TURN 中继，内容仍是端到端加密。")}
       </p>
       <ul className="fact-list">
         <li>
           <LockIcon size={15} />
-          密钥只在本地参与 PBKDF2 校验
+          {t("密钥只在本地参与 PBKDF2 校验")}
         </li>
         <li>
           <ShieldIcon size={15} />
-          画面由 DTLS-SRTP 加密传输
+          {t("画面由 DTLS-SRTP 加密传输")}
         </li>
         <li>
           <PowerIcon size={15} />
-          随时可点击“结束控制”断开
+          {t("随时可点击“结束控制”断开")}
         </li>
       </ul>
       <div className="aside-note">
         <ArrowRightIcon size={14} />
-        没有账号、没有密码找回，只有远控码和密钥。
+        {t("没有账号、没有密码找回，只有远控码和密钥。")}
       </div>
     </aside>
   );
@@ -401,10 +402,10 @@ export function ControlPanel({
             <span className="eyebrow-icon">
               <MonitorIcon size={14} />
             </span>
-            远程控制
+            {t("远程控制")}
           </span>
-          <h1>连接另一台电脑</h1>
-          <p>输入对方“本机被控”页显示的远控码与访问密钥，无需注册账号。</p>
+          <h1>{t("连接另一台电脑")}</h1>
+          <p>{t("输入对方“本机被控”页显示的远控码与访问密钥，无需注册账号。")}</p>
         </div>
         <div className="panel-heading-actions">
           {catalogHosts.length > 0 && (
@@ -416,10 +417,10 @@ export function ControlPanel({
                   .getElementById("shared-catalog")
                   ?.scrollIntoView({ behavior: "smooth", block: "start" })
               }
-              title="查看本服共享设备"
+              title={t("查看本服共享设备")}
             >
               <ServerIcon size={14} />
-              共享设备 {catalogHosts.length}
+              {t("共享设备")} {catalogHosts.length}
             </button>
           )}
           <StatusPill tone={status.tone} label={status.label} />
@@ -427,17 +428,17 @@ export function ControlPanel({
       </div>
 
       <HelpTip
-        title="连接前先确认"
+        title={t("连接前先确认")}
         onOpenGuide={onOpenGuide}
         onAskAi={() =>
           onAskAi(
             error
-              ? errorQuestion("控制远程设备", error)
-              : "我想控制另一台电脑，需要对方提供什么？",
+              ? errorQuestion(t("控制远程设备"), error)
+              : t("我想控制另一台电脑，需要对方提供什么？"),
           )
         }
       >
-        对方需要在「本机被控」页保持在线，并把 9 位远控码和 10 位访问密钥一起发给你；两端服务器地址要一致。也可以从下方共享设备列表向本服成员发送申请。
+        {t("对方需要在「本机被控」页保持在线，并把 9 位远控码和 10 位访问密钥一起发给你；两端服务器地址要一致。也可以从下方共享设备列表向本服成员发送申请。")}
       </HelpTip>
 
       <div className="control-layout">
@@ -450,8 +451,8 @@ export function ControlPanel({
         >
           <div className="field">
             <div className="field-label">
-              <span>远控码</span>
-              <span className="field-hint">9 位数字</span>
+              <span>{t("远控码")}</span>
+              <span className="field-hint">{t("9 位数字")}</span>
             </div>
             <div className={`input-shell${busy ? " disabled" : ""}`}>
               <HashIcon size={18} />
@@ -465,15 +466,15 @@ export function ControlPanel({
                 spellCheck={false}
                 maxLength={11}
                 disabled={busy}
-                aria-label="远控码"
+                aria-label={t("远控码")}
               />
             </div>
           </div>
 
           <div className="field">
             <div className="field-label">
-              <span>访问密钥</span>
-              <span className="field-hint">10 位，不含 I / O / 0 / 1</span>
+              <span>{t("访问密钥")}</span>
+              <span className="field-hint">{t("10 位，不含 I / O / 0 / 1")}</span>
             </div>
             <div className={`input-shell${busy ? " disabled" : ""}`}>
               <LockIcon size={18} />
@@ -487,14 +488,14 @@ export function ControlPanel({
                 spellCheck={false}
                 maxLength={11}
                 disabled={busy}
-                aria-label="访问密钥"
+                aria-label={t("访问密钥")}
               />
               <button
                 type="button"
                 className="icon-button subtle input-action"
                 onClick={() => setShowKey((value) => !value)}
-                aria-label={showKey ? "隐藏密钥" : "显示密钥"}
-                title={showKey ? "隐藏密钥" : "显示密钥"}
+                aria-label={showKey ? t("隐藏密钥") : t("显示密钥")}
+                title={showKey ? t("隐藏密钥") : t("显示密钥")}
               >
                 {showKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
               </button>
@@ -506,17 +507,17 @@ export function ControlPanel({
             <div className="inline-actions">
               {inviteIssue && (
                 <button type="button" className="text-button" onClick={onOpenSettings}>
-                  去设置中填写邀请码
+                  {t("去设置中填写邀请码")}
                 </button>
               )}
               {error && (
                 <button
                   type="button"
                   className="text-button ai"
-                  onClick={() => onAskAi(errorQuestion("控制远程设备", error))}
+                  onClick={() => onAskAi(errorQuestion(t("控制远程设备"), error))}
                 >
                   <SparkIcon size={13} />
-                  让 AI 分析这个错误
+                  {t("让 AI 分析这个错误")}
                 </button>
               )}
             </div>
@@ -533,17 +534,17 @@ export function ControlPanel({
               data-testid="control-connect"
               disabled={!ready}
             >
-              连接远程设备
+              {t("连接远程设备")}
               <ArrowRightIcon size={17} />
             </button>
           )}
 
           <div className="form-foot">
             <ShieldIcon size={14} />
-            <span>密钥不会发送到服务器，视频默认点对点加密。</span>
+            <span>{t("密钥不会发送到服务器，视频默认点对点加密。")}</span>
           </div>
           <div className="form-server">
-            服务器 <span>{settings.serverUrl}</span>
+            {t("服务器")} <span>{settings.serverUrl}</span>
           </div>
         </form>
 
@@ -562,13 +563,13 @@ export function ControlPanel({
 
       <div className="panel-foot trust-row">
         <span>
-          <LockIcon size={14} /> 无账号模式
+          <LockIcon size={14} /> {t("无账号模式")}
         </span>
         <span>
-          <ShieldIcon size={14} /> 服务器仅转发信令
+          <ShieldIcon size={14} /> {t("服务器仅转发信令")}
         </span>
         <span>
-          <ArrowRightIcon size={14} /> 连接失败不会泄露密钥
+          <ArrowRightIcon size={14} /> {t("连接失败不会泄露密钥")}
         </span>
       </div>
     </section>

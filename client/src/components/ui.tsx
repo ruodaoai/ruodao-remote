@@ -10,6 +10,8 @@ import {
   XIcon,
 } from "./icons";
 
+import { t } from "../i18n";
+
 export function StatusPill({
   tone,
   label,
@@ -75,11 +77,11 @@ export function CopyButton({
       type="button"
       className={`copy-button${withLabel ? " with-label" : ""}${copied ? " copied" : ""}`}
       onClick={() => void copy()}
-      aria-label={copied ? "已复制" : label}
-      title={copied ? "已复制" : label}
+      aria-label={copied ? t("已复制") : label}
+      title={copied ? t("已复制") : label}
     >
       {copied ? <CheckIcon size={15} /> : <CopyIcon size={15} />}
-      {withLabel && <span>{copied ? "已复制" : "复制"}</span>}
+      {withLabel && <span>{copied ? t("已复制") : t("复制")}</span>}
     </button>
   );
 }
@@ -107,13 +109,13 @@ export function HelpTip({
       <div className="help-tip-actions">
         {onOpenGuide && (
           <button type="button" className="text-button" onClick={onOpenGuide}>
-            使用指南
+            {t("使用指南")}
           </button>
         )}
         {onAskAi && (
           <button type="button" className="text-button ai" onClick={onAskAi}>
             <SparkIcon size={13} />
-            问 AI
+            {t("问 AI")}
           </button>
         )}
       </div>
@@ -145,7 +147,7 @@ export function ToastStack({
           <button
             type="button"
             className="toast-close"
-            aria-label="关闭提示"
+            aria-label={t("关闭提示")}
             onClick={() => onDismiss(toast.id)}
           >
             <XIcon size={14} />

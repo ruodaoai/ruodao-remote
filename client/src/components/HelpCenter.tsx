@@ -18,6 +18,9 @@ import {
   XIcon,
 } from "./icons";
 
+import { t, tf } from "../i18n";
+
+
 interface HelpCenterProps {
   open: boolean;
   diagnosis: Diagnosis;
@@ -30,16 +33,16 @@ interface HelpCenterProps {
 type HelpTab = "guide" | "faq" | "trouble";
 
 const SCENARIO_QUESTION: Record<string, string> = {
-  host: "我想让别人控制我的电脑，应该怎么操作？",
-  control: "我想控制另一台电脑，需要对方提供什么？",
-  share: "我想部署服务端并把服务分享给朋友，应该按什么顺序操作？",
-  ai: "我不太会用若道远程，请用最简单的步骤告诉我怎么开始。",
+  host: t("我想让别人控制我的电脑，应该怎么操作？"),
+  control: t("我想控制另一台电脑，需要对方提供什么？"),
+  share: t("我想部署服务端并把服务分享给朋友，应该按什么顺序操作？"),
+  ai: t("我不太会用若道远程，请用最简单的步骤告诉我怎么开始。"),
 };
 
 const TAB_LABELS: Record<HelpTab, string> = {
-  guide: "快速上手",
-  faq: "常见问题",
-  trouble: "故障排查",
+  guide: t("快速上手"),
+  faq: t("常见问题"),
+  trouble: t("故障排查"),
 };
 
 function ScenarioCard({
@@ -75,7 +78,7 @@ function ScenarioCard({
           onClick={() => onAskAi(SCENARIO_QUESTION[scenario.id])}
         >
           <SparkIcon size={13} />
-          问 AI
+          {t("问 AI")}
         </button>
       </div>
     </article>
@@ -117,10 +120,10 @@ function FaqRow({
           <button
             type="button"
             className="text-button ai"
-            onClick={() => onAskAi(`${item.question} 请结合当前状态告诉我具体怎么做。`)}
+            onClick={() => onAskAi(tf("{0} 请结合当前状态告诉我具体怎么做。", item.question))}
           >
             <SparkIcon size={13} />
-            这个问题问 AI
+            {t("这个问题问 AI")}
           </button>
         </div>
       )}
@@ -181,7 +184,7 @@ export function HelpCenter({
 
   function askIssue(issue: DiagnosisIssue): void {
     onAskAi(
-      `我遇到了「${issue.title}」：${issue.detail}。请结合当前状态判断原因，并给出按顺序的操作步骤。`,
+      tf("我遇到了「{0}」：{1}。请结合当前状态判断原因，并给出按顺序的操作步骤。", issue.title, issue.detail),
     );
   }
 
@@ -206,9 +209,9 @@ export function HelpCenter({
             <BookIcon size={22} />
           </span>
           <div className="help-head-copy">
-            <span className="eyebrow">使用指南</span>
-            <h2>3 分钟看懂若道远程</h2>
-            <p>从被控、远控到把服务分享给朋友，按场景找到对应步骤。</p>
+            <span className="eyebrow">{t("使用指南")}</span>
+            <h2>{t("3 分钟看懂若道远程")}</h2>
+            <p>{t("从被控、远控到把服务分享给朋友，按场景找到对应步骤。")}</p>
           </div>
           <div className="help-head-actions">
             <button
@@ -217,16 +220,16 @@ export function HelpCenter({
               onClick={onReplayOnboarding}
             >
               <HelpIcon size={15} />
-              新手引导
+              {t("新手引导")}
             </button>
-            <button type="button" className="icon-button" aria-label="关闭使用指南" onClick={onClose}>
+            <button type="button" className="icon-button" aria-label={t("关闭使用指南")} onClick={onClose}>
               <XIcon size={18} />
             </button>
           </div>
         </header>
 
         <div className="help-toolbar">
-          <nav className="help-tabs" aria-label="指南分类">
+          <nav className="help-tabs" aria-label={t("指南分类")}>
             {(Object.keys(TAB_LABELS) as HelpTab[]).map((item) => (
               <button
                 key={item}
@@ -246,14 +249,14 @@ export function HelpCenter({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索：邀请码、黑屏、部署失败…"
-              aria-label="搜索使用指南"
+              placeholder={t("搜索：邀请码、黑屏、部署失败…")}
+              aria-label={t("搜索使用指南")}
             />
             {query && (
               <button
                 type="button"
                 className="help-search-clear"
-                aria-label="清空搜索"
+                aria-label={t("清空搜索")}
                 onClick={() => setQuery("")}
               >
                 <XIcon size={14} />
@@ -265,7 +268,7 @@ export function HelpCenter({
         <div className="help-body" ref={bodyRef}>
           {query && (
             <p className="help-search-note">
-              “{query}” 找到 {scenarios.length} 个场景、{faqs.length} 个问题
+              “{query}{t("” 找到")} {scenarios.length} {t("个场景、")}{faqs.length} {t("个问题")}
             </p>
           )}
 
@@ -273,21 +276,20 @@ export function HelpCenter({
             <div className="help-guide">
               <div className="help-intro">
                 <div>
-                  <strong>先选一个你的目标</strong>
+                  <strong>{t("先选一个你的目标")}</strong>
                   <p>
-                    若道远程不需要注册就能远控。第一次使用建议按顺序看一遍“我要被控”和“我要远控”，
-                    需要给朋友提供服务时再看“我要分享”。
+                    {t("若道远程不需要注册就能远控。第一次使用建议按顺序看一遍“我要被控”和“我要远控”，\n                    需要给朋友提供服务时再看“我要分享”。")}
                   </p>
                 </div>
                 <button type="button" className="button primary small" onClick={onOpenDeploy}>
-                  部署服务器
+                  {t("部署服务器")}
                 </button>
               </div>
               {scenarios.length === 0 ? (
                 <div className="help-empty">
                   <SearchIcon size={22} />
-                  <strong>没有找到相关步骤</strong>
-                  <p>换个关键词试试，或直接问 AI。</p>
+                  <strong>{t("没有找到相关步骤")}</strong>
+                  <p>{t("换个关键词试试，或直接问 AI。")}</p>
                 </div>
               ) : (
                 <div className="help-scenario-grid">
@@ -304,11 +306,11 @@ export function HelpCenter({
               {faqs.length === 0 ? (
                 <div className="help-empty">
                   <SearchIcon size={22} />
-                  <strong>没有找到这个问题</strong>
-                  <p>可以换个说法，或让 AI 结合当前状态回答。</p>
+                  <strong>{t("没有找到这个问题")}</strong>
+                  <p>{t("可以换个说法，或让 AI 结合当前状态回答。")}</p>
                   <button type="button" className="button primary small" onClick={() => onAskAi(query)}>
                     <SparkIcon size={15} />
-                    问 AI
+                    {t("问 AI")}
                   </button>
                 </div>
               ) : (
@@ -340,8 +342,7 @@ export function HelpCenter({
                 <div>
                   <strong>{diagnosis.headline}</strong>
                   <p>
-                    这是客户端根据当前连接状态、服务器配置和最近错误自动检测的结果，
-                    只用于本地提示，不会自动上传。
+                    {t("这是客户端根据当前连接状态、服务器配置和最近错误自动检测的结果，\n                    只用于本地提示，不会自动上传。")}
                   </p>
                 </div>
                 <button
@@ -349,20 +350,20 @@ export function HelpCenter({
                   className="button primary small"
                   onClick={() =>
                     onAskAi(
-                      "请全面检查我当前的连接和部署状态，判断有没有需要处理的问题，并给出按顺序的操作建议。",
+                      t("请全面检查我当前的连接和部署状态，判断有没有需要处理的问题，并给出按顺序的操作建议。"),
                     )
                   }
                 >
                   <SparkIcon size={15} />
-                  让 AI 全面检查
+                  {t("让 AI 全面检查")}
                 </button>
               </div>
 
               {diagnosis.issues.length === 0 ? (
                 <div className="help-empty">
                   <CheckIcon size={22} />
-                  <strong>暂时没有检测到问题</strong>
-                  <p>如果仍然无法使用，可以直接问 AI，并描述你看到的现象。</p>
+                  <strong>{t("暂时没有检测到问题")}</strong>
+                  <p>{t("如果仍然无法使用，可以直接问 AI，并描述你看到的现象。")}</p>
                 </div>
               ) : (
                 <div className="help-issue-list">
@@ -380,7 +381,7 @@ export function HelpCenter({
                               className="text-button"
                               onClick={() => openFaq(issue.faqId as string)}
                             >
-                              查看相关说明
+                              {t("查看相关说明")}
                             </button>
                           )}
                           <button
@@ -389,7 +390,7 @@ export function HelpCenter({
                             onClick={() => askIssue(issue)}
                           >
                             <SparkIcon size={13} />
-                            让 AI 分析
+                            {t("让 AI 分析")}
                           </button>
                         </div>
                       </div>
@@ -401,10 +402,10 @@ export function HelpCenter({
               <div className="help-trouble-foot">
                 <span>
                   <InfoIcon size={14} />
-                  部署失败、连接被拒等动态错误会显示在上面的检测结果中。
+                  {t("部署失败、连接被拒等动态错误会显示在上面的检测结果中。")}
                 </span>
                 <button type="button" className="text-button" onClick={() => openFaq("deploy-fail")}>
-                  部署失败怎么办？
+                  {t("部署失败怎么办？")}
                 </button>
               </div>
             </div>
@@ -414,7 +415,7 @@ export function HelpCenter({
         <footer className="help-foot">
           <span>
             <BookIcon size={14} />
-            仍然看不懂？可以让 AI 结合当前状态一步步带你操作。
+            {t("仍然看不懂？可以让 AI 结合当前状态一步步带你操作。")}
           </span>
           <div className="help-foot-actions">
             <button
@@ -425,11 +426,11 @@ export function HelpCenter({
                 setQuery("");
               }}
             >
-              从头看一遍
+              {t("从头看一遍")}
             </button>
             <button type="button" className="button primary small" onClick={() => onAskAi()}>
               <SparkIcon size={15} />
-              问 AI 助手
+              {t("问 AI 助手")}
             </button>
           </div>
         </footer>

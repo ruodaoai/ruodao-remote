@@ -43,7 +43,8 @@ Renderer changes hot-reload; main-process changes need a restart.
 | `packaging/server/` | deployment scripts and systemd template |
 
 - A new environment variable must be added to `server/.env.example`, `docs/技术文档.md` and `docs/en/technical-reference.md`;
-- user-visible strings must be provided in Chinese and English (the client UI is Chinese-first; English follows the docs);
+- user-visible strings must exist in Chinese and English: write `t("中文原文")` in components (use `tf("… {0}", value)` for interpolation) and add the entry to `client/src/i18n/en.ts`;
+- after changing copy, run `node client/scripts/i18n-audit.mjs` and make sure it reports 0 missing and 0 unwrapped strings;
 - screenshots are produced by `client/scripts/capture-docs-shots.mjs` — do not replace them with hand-made captures.
 
 ## Branches and commits

@@ -46,7 +46,8 @@ cd client && npm run dev                    # 终端 2：Vite + Electron
 | `packaging/server/` | 服务端部署包脚本与 systemd 模板 |
 
 - 新增环境变量必须同时更新 `server/.env.example`、`docs/技术文档.md` 与 `docs/en/technical-reference.md`；
-- 新增用户可见文案需要同时提供中文与英文（客户端目前以中文为主，英文随文档维护）；
+- 新增用户可见文案需要同时提供中文与英文：组件里写 `t("中文原文")`（带变量用 `tf("……{0}", 值)`），再到 `client/src/i18n/en.ts` 补词条；
+- 修改文案后运行 `node client/scripts/i18n-audit.mjs`，确认「缺失 0、未包裹 0」；
 - 截图统一由 `client/scripts/capture-docs-shots.mjs` 生成，不要手动截图后替换。
 
 ## 分支与提交

@@ -39,12 +39,15 @@ import {
 } from "./icons";
 import { CopyButton, InlineAlert, StatusPill } from "./ui";
 
+import { t, tf } from "../i18n";
+
+
 const PAGE_SIZE = 9;
 
 const SORT_OPTIONS: Array<{ id: SharedServerSort; label: string }> = [
-  { id: "recommended", label: "推荐排序" },
-  { id: "newest", label: "最新发布" },
-  { id: "expiring", label: "即将到期" },
+  { id: "recommended", label: t("推荐排序") },
+  { id: "newest", label: t("最新发布") },
+  { id: "expiring", label: t("即将到期") },
 ];
 
 interface SharedServersPanelProps {
@@ -55,7 +58,7 @@ interface SharedServersPanelProps {
 }
 
 function cleanError(error: unknown): string {
-  if (!(error instanceof Error)) return "操作失败，请稍后再试。";
+  if (!(error instanceof Error)) return t("操作失败，请稍后再试。");
   return error.message.replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, "");
 }
 
@@ -139,11 +142,11 @@ function SharedLoginCard({
         </span>
         <div>
           <span className="community-kicker">
-            <ShieldIcon size={13} /> 若道账号
+            <ShieldIcon size={13} /> {t("若道账号")}
           </span>
-          <h3>登录后查看共享服务器详情</h3>
+          <h3>{t("登录后查看共享服务器详情")}</h3>
           <p>
-            列表不用登录也能浏览；登录后可以查看完整地址、邀请码与配置说明，并发布自己的服务器。社区留言与共享服务器共用一个若道账号。
+            {t("列表不用登录也能浏览；登录后可以查看完整地址、邀请码与配置说明，并发布自己的服务器。社区留言与共享服务器共用一个若道账号。")}
           </p>
         </div>
       </div>
@@ -155,7 +158,7 @@ function SharedLoginCard({
         }}
       >
         {expired && (
-          <InlineAlert kind="info">登录已过期，请重新输入密码。远控连接不受影响。</InlineAlert>
+          <InlineAlert kind="info">{t("登录已过期，请重新输入密码。远控连接不受影响。")}</InlineAlert>
         )}
         <div className="shared-login-fields">
           <div className="input-shell">
@@ -165,7 +168,7 @@ function SharedLoginCard({
               data-testid="shared-login-email"
               type="email"
               value={email}
-              placeholder="若道账号邮箱"
+              placeholder={t("若道账号邮箱")}
               autoComplete="username"
               spellCheck={false}
               onChange={(event) => setEmail(event.target.value)}
@@ -178,7 +181,7 @@ function SharedLoginCard({
               type={showPassword ? "text" : "password"}
               value={password}
               maxLength={256}
-              placeholder="密码"
+              placeholder={t("密码")}
               autoComplete="current-password"
               onChange={(event) => setPassword(event.target.value)}
             />
@@ -186,7 +189,7 @@ function SharedLoginCard({
               type="button"
               className="input-action"
               onClick={() => setShowPassword((value) => !value)}
-              aria-label={showPassword ? "隐藏密码" : "显示密码"}
+              aria-label={showPassword ? t("隐藏密码") : t("显示密码")}
             >
               {showPassword ? <EyeOffIcon size={15} /> : <EyeIcon size={15} />}
             </button>
@@ -198,7 +201,7 @@ function SharedLoginCard({
             disabled={assistant.loginBusy || !email.trim() || !password}
           >
             {assistant.loginBusy ? <span className="spinner small" /> : <UserIcon size={15} />}
-            {assistant.loginBusy ? "正在登录…" : "登录"}
+            {assistant.loginBusy ? t("正在登录…") : t("登录")}
           </button>
         </div>
         {assistant.error && <InlineAlert>{assistant.error}</InlineAlert>}
@@ -208,7 +211,7 @@ function SharedLoginCard({
             className="text-button"
             onClick={() => void assistant.openAccount("register")}
           >
-            注册若道账号
+            {t("注册若道账号")}
           </button>
           <span>·</span>
           <button
@@ -216,7 +219,7 @@ function SharedLoginCard({
             className="text-button"
             onClick={() => void assistant.openAccount("login")}
           >
-            在浏览器中登录
+            {t("在浏览器中登录")}
           </button>
         </div>
       </form>
@@ -259,7 +262,7 @@ function PublicServerCard({
             <strong>{server.name}</strong>
             <span>
               {locked
-                ? `${server.region ? `${server.region} · ` : ""}登录后显示服务器地址`
+                ? tf("{0}登录后显示服务器地址", server.region ? `${server.region} · ` : "")
                 : `${server.host || server.address}${server.region ? ` · ${server.region}` : ""}`}
             </span>
           </div>
@@ -271,39 +274,39 @@ function PublicServerCard({
         <span className="shared-server-chip">{mode.label}</span>
         {locked && (
           <span className="shared-server-chip locked">
-            <LockIcon size={11} /> 详情需登录
+            <LockIcon size={11} /> {t("详情需登录")}
           </span>
         )}
         {!locked && server.specs && <span className="shared-server-chip">{server.specs}</span>}
         {!locked && server.maxDevices ? (
-          <span className="shared-server-chip">可接入 {server.maxDevices} 台</span>
+          <span className="shared-server-chip">{t("可接入")} {server.maxDevices} {t("台")}</span>
         ) : null}
-        {current && <span className="shared-server-chip current">当前使用</span>}
+        {current && <span className="shared-server-chip current">{t("当前使用")}</span>}
       </div>
 
       <dl className="shared-server-facts">
         <div>
-          <dt>在线设备</dt>
+          <dt>{t("在线设备")}</dt>
           <dd className={locked ? "locked" : undefined}>
             {locked
-              ? "登录后可见"
-              : `${server.peers ?? 0} 台${server.sessions ? ` · ${server.sessions} 个远控中` : ""}`}
+              ? t("登录后可见")
+              : tf("{0} 台{1}", server.peers ?? 0, server.sessions ? tf(" · {0} 个远控中", server.sessions) : "")}
           </dd>
         </div>
         <div>
-          <dt>有效期</dt>
+          <dt>{t("有效期")}</dt>
           <dd className={locked ? "locked" : undefined} title={locked ? undefined : formatExpiryDate(server.expiresAt)}>
-            {locked ? "登录后可见" : expiryText(server.expiresAt)}
+            {locked ? t("登录后可见") : expiryText(server.expiresAt)}
           </dd>
         </div>
         <div>
-          <dt>服务端</dt>
+          <dt>{t("服务端")}</dt>
           <dd className={locked ? "locked" : undefined}>
             {locked
-              ? "登录后可见"
+              ? t("登录后可见")
               : server.serverVersion
                 ? `v${server.serverVersion}`
-                : "版本未知"}
+                : t("版本未知")}
           </dd>
         </div>
       </dl>
@@ -311,20 +314,20 @@ function PublicServerCard({
       {locked ? (
         <div className="shared-server-invite locked">
           <LockIcon size={14} />
-          <span>登录后可查看邀请码与接入方式</span>
+          <span>{t("登录后可查看邀请码与接入方式")}</span>
         </div>
       ) : server.registrationMode === "invite" ? (
         server.inviteCode ? (
           <div className="shared-server-invite">
             <LockIcon size={14} />
-            <span>邀请码</span>
+            <span>{t("邀请码")}</span>
             <code>{formatInviteCode(server.inviteCode)}</code>
-            <CopyButton value={server.inviteCode} label="复制邀请码" />
+            <CopyButton value={server.inviteCode} label={t("复制邀请码")} />
           </div>
         ) : (
           <div className="shared-server-invite warning">
             <AlertIcon size={14} />
-            发布者没有填写邀请码，可能无法接入
+            {t("发布者没有填写邀请码，可能无法接入")}
           </div>
         )
       ) : (
@@ -343,9 +346,9 @@ function PublicServerCard({
           disabled={!locked && (using || offline)}
           title={
             locked
-              ? "登录后即可查看详情并接入"
+              ? t("登录后即可查看详情并接入")
               : offline
-                ? "健康检查未通过，暂时无法接入"
+                ? t("健康检查未通过，暂时无法接入")
                 : undefined
           }
           onClick={locked ? onRequireLogin : onUse}
@@ -357,7 +360,7 @@ function PublicServerCard({
           ) : (
             <GlobeIcon size={15} />
           )}
-          {using ? "正在切换…" : locked ? "登录后使用" : "使用此服务器"}
+          {using ? t("正在切换…") : locked ? t("登录后使用") : t("使用此服务器")}
         </button>
         <button
           type="button"
@@ -365,7 +368,7 @@ function PublicServerCard({
           onClick={locked ? onRequireLogin : onReport}
         >
           <AlertIcon size={14} />
-          {locked ? "登录后报告" : "报告问题"}
+          {locked ? t("登录后报告") : t("报告问题")}
         </button>
       </footer>
     </article>
@@ -412,7 +415,7 @@ function MineServerCard({
             <ServerIcon size={18} />
           </span>
           <div>
-            <strong>{server?.name ?? "未命名的共享记录"}</strong>
+            <strong>{server?.name ?? t("未命名的共享记录")}</strong>
             <span>{server?.host || server?.address || entry.id}</span>
           </div>
         </div>
@@ -424,35 +427,35 @@ function MineServerCard({
           <div className="shared-server-chips">
             <span className="shared-server-chip">{mode.label}</span>
             {server.specs && <span className="shared-server-chip">{server.specs}</span>}
-            {current && <span className="shared-server-chip current">当前使用</span>}
+            {current && <span className="shared-server-chip current">{t("当前使用")}</span>}
           </div>
           <dl className="shared-server-facts">
             <div>
-              <dt>有效期</dt>
+              <dt>{t("有效期")}</dt>
               <dd title={formatExpiryDate(server.expiresAt)}>
                 {expiryText(server.expiresAt)} · {formatExpiryDate(server.expiresAt)}
               </dd>
             </div>
             <div>
-              <dt>在线设备</dt>
-              <dd>{server.peers ?? 0} 台</dd>
+              <dt>{t("在线设备")}</dt>
+              <dd>{server.peers ?? 0} {t("台")}</dd>
             </div>
             <div>
-              <dt>接入方式</dt>
+              <dt>{t("接入方式")}</dt>
               <dd>{mode.label}</dd>
             </div>
           </dl>
           {server.registrationMode === "invite" && server.inviteCode && (
             <div className="shared-server-invite">
               <LockIcon size={14} />
-              <span>邀请码</span>
+              <span>{t("邀请码")}</span>
               <code>{formatInviteCode(server.inviteCode)}</code>
-              <CopyButton value={server.inviteCode} label="复制邀请码" />
+              <CopyButton value={server.inviteCode} label={t("复制邀请码")} />
             </div>
           )}
         </>
       ) : (
-        <p className="shared-server-card-note">本机保存的记录不完整，无法显示详情。</p>
+        <p className="shared-server-card-note">{t("本机保存的记录不完整，无法显示详情。")}</p>
       )}
 
       {entry.error && (
@@ -464,13 +467,13 @@ function MineServerCard({
       {entry.gone && (
         <p className="shared-server-card-error">
           <AlertIcon size={13} />
-          服务器上已找不到这条记录，可能已过期或被管理员移除。
+          {t("服务器上已找不到这条记录，可能已过期或被管理员移除。")}
         </p>
       )}
       {!entry.gone && server?.status === "hidden" && (
         <p className="shared-server-card-error">
           <AlertIcon size={13} />
-          已被管理员隐藏，更新信息不会自动恢复展示，请联系管理员复核。
+          {t("已被管理员隐藏，更新信息不会自动恢复展示，请联系管理员复核。")}
         </p>
       )}
 
@@ -482,10 +485,10 @@ function MineServerCard({
           onClick={onUse}
         >
           {using ? <span className="spinner small" /> : <GlobeIcon size={15} />}
-          {using ? "正在切换…" : "使用"}
+          {using ? t("正在切换…") : t("使用")}
         </button>
         <button type="button" className="button ghost small" disabled={busy} onClick={onEdit}>
-          {expired || (days !== null && days <= 3) ? "续期" : "更新信息"}
+          {expired || (days !== null && days <= 3) ? t("续期") : t("更新信息")}
         </button>
         <button
           type="button"
@@ -494,7 +497,7 @@ function MineServerCard({
           onClick={onRemove}
         >
           {busy ? <span className="spinner small" /> : <XIcon size={14} />}
-          下架
+          {t("下架")}
         </button>
       </footer>
     </article>
@@ -551,7 +554,7 @@ function PublishDialog({
           ? await window.remote.sharedServersUpdate({ ...input, id: entry.id })
           : await window.remote.sharedServersCreate(input);
       notify(
-        mode === "edit" ? "共享信息已更新" : "已发布到共享服务器列表，其他用户可以免费使用了",
+        mode === "edit" ? t("共享信息已更新") : t("已发布到共享服务器列表，其他用户可以免费使用了"),
         "success",
       );
       onSaved(result.server);
@@ -588,15 +591,15 @@ function PublishDialog({
       >
         <div className="settings-head">
           <div>
-            <span className="eyebrow">{mode === "edit" ? "续期与更新" : "贡献服务器"}</span>
-            <h2>{mode === "edit" ? "更新共享信息" : "发布我的服务器"}</h2>
+            <span className="eyebrow">{mode === "edit" ? t("续期与更新") : t("贡献服务器")}</span>
+            <h2>{mode === "edit" ? t("更新共享信息") : t("发布我的服务器")}</h2>
           </div>
           <button
             type="button"
             className="icon-button"
             onClick={onClose}
             disabled={saving}
-            aria-label="关闭"
+            aria-label={t("关闭")}
           >
             <XIcon size={18} />
           </button>
@@ -606,18 +609,17 @@ function PublishDialog({
           <div className="settings-note">
             <ShieldIcon size={17} />
             <div>
-              <strong>发布前会真实检查服务器</strong>
+              <strong>{t("发布前会真实检查服务器")}</strong>
               <p>
-                只接受能公网访问的 HTTPS 地址。我们会请求 /health
-                确认它正在运行若道远程服务，检查通过后才会出现在列表里。
+                {t("只接受能公网访问的 HTTPS 地址。我们会请求 /health\n                确认它正在运行若道远程服务，检查通过后才会出现在列表里。")}
               </p>
             </div>
           </div>
 
           <label className="field">
             <div className="field-label">
-              <span>显示名称</span>
-              <span className="field-hint">2-40 个字符</span>
+              <span>{t("显示名称")}</span>
+              <span className="field-hint">{t("2-40 个字符")}</span>
             </div>
             <div className="input-shell">
               <ServerIcon size={17} />
@@ -625,7 +627,7 @@ function PublishDialog({
                 data-testid="shared-server-name"
                 value={form.name}
                 maxLength={40}
-                placeholder="例如：香港社区共享服务器"
+                placeholder={t("例如：香港社区共享服务器")}
                 onChange={(event) => patch("name", event.target.value)}
               />
             </div>
@@ -633,8 +635,8 @@ function PublishDialog({
 
           <label className="field">
             <div className="field-label">
-              <span>服务器地址</span>
-              <span className="field-hint">必须 HTTPS</span>
+              <span>{t("服务器地址")}</span>
+              <span className="field-hint">{t("必须 HTTPS")}</span>
             </div>
             <div className="input-shell">
               <GlobeIcon size={17} />
@@ -648,35 +650,35 @@ function PublishDialog({
               />
             </div>
             <p className="field-help">
-              在「服务端」页部署完成后拿到的地址，不要带路径、账号或查询参数。
+              {t("在「服务端」页部署完成后拿到的地址，不要带路径、账号或查询参数。")}
             </p>
           </label>
 
           <div className="shared-server-form-grid">
             <label className="field">
               <div className="field-label">
-                <span>地区</span>
-                <span className="field-hint">选填</span>
+                <span>{t("地区")}</span>
+                <span className="field-hint">{t("选填")}</span>
               </div>
               <div className="input-shell">
                 <input
                   value={form.region}
                   maxLength={32}
-                  placeholder="例如：香港 / 上海"
+                  placeholder={t("例如：香港 / 上海")}
                   onChange={(event) => patch("region", event.target.value)}
                 />
               </div>
             </label>
             <label className="field">
               <div className="field-label">
-                <span>配置说明</span>
-                <span className="field-hint">选填</span>
+                <span>{t("配置说明")}</span>
+                <span className="field-hint">{t("选填")}</span>
               </div>
               <div className="input-shell">
                 <input
                   value={form.specs}
                   maxLength={80}
-                  placeholder="例如：2 核 4G · 5Mbps"
+                  placeholder={t("例如：2 核 4G · 5Mbps")}
                   onChange={(event) => patch("specs", event.target.value)}
                 />
               </div>
@@ -686,8 +688,8 @@ function PublishDialog({
           <div className="shared-server-form-grid">
             <label className="field">
               <div className="field-label">
-                <span>可接入设备数</span>
-                <span className="field-hint">选填</span>
+                <span>{t("可接入设备数")}</span>
+                <span className="field-hint">{t("选填")}</span>
               </div>
               <div className="input-shell">
                 <input
@@ -695,15 +697,15 @@ function PublishDialog({
                   min={1}
                   max={10000}
                   value={form.maxDevices}
-                  placeholder="例如：20"
+                  placeholder={t("例如：20")}
                   onChange={(event) => patch("maxDevices", event.target.value)}
                 />
               </div>
             </label>
             <label className="field">
               <div className="field-label">
-                <span>有效期</span>
-                <span className="field-hint">最长 365 天</span>
+                <span>{t("有效期")}</span>
+                <span className="field-hint">{t("最长 365 天")}</span>
               </div>
               <div className="input-shell">
                 <input
@@ -719,8 +721,8 @@ function PublishDialog({
 
           <label className="field">
             <div className="field-label">
-              <span>邀请码</span>
-              <span className="field-hint">服务器开启邀请制时需要</span>
+              <span>{t("邀请码")}</span>
+              <span className="field-hint">{t("服务器开启邀请制时需要")}</span>
             </div>
             <div className="input-shell">
               <HashIcon size={17} />
@@ -729,26 +731,26 @@ function PublishDialog({
                 spellCheck={false}
                 autoComplete="off"
                 maxLength={64}
-                placeholder="例如 ABCD-EFGH"
+                placeholder={t("例如 ABCD-EFGH")}
                 onChange={(event) => patch("inviteCode", event.target.value)}
               />
             </div>
             <p className="field-help">
-              邀请码会公开显示给所有用户，方便他们直接接入。请确认它只用于共享服务器。
+              {t("邀请码会公开显示给所有用户，方便他们直接接入。请确认它只用于共享服务器。")}
             </p>
           </label>
 
           <label className="field">
             <div className="field-label">
-              <span>补充说明</span>
-              <span className="field-hint">选填 · 最多 200 字</span>
+              <span>{t("补充说明")}</span>
+              <span className="field-hint">{t("选填 · 最多 200 字")}</span>
             </div>
             <textarea
               className="shared-server-textarea"
               rows={3}
               maxLength={200}
               value={form.note}
-              placeholder="例如：带宽有限，请勿用于大文件传输；长期在线。"
+              placeholder={t("例如：带宽有限，请勿用于大文件传输；长期在线。")}
               onChange={(event) => patch("note", event.target.value)}
             />
           </label>
@@ -757,10 +759,10 @@ function PublishDialog({
         </div>
 
         <div className="settings-foot">
-          <span className="field-help">管理令牌只保存在本机，用于之后续期或下架。</span>
+          <span className="field-help">{t("管理令牌只保存在本机，用于之后续期或下架。")}</span>
           <div className="settings-actions">
             <button type="button" className="button ghost small" disabled={saving} onClick={onClose}>
-              取消
+              {t("取消")}
             </button>
             <button
               type="submit"
@@ -770,10 +772,10 @@ function PublishDialog({
             >
               {saving ? <span className="spinner small" /> : <SendIcon size={15} />}
               {saving
-                ? "正在检查服务器…"
+                ? t("正在检查服务器…")
                 : mode === "edit"
-                  ? "保存更新"
-                  : "检查并发布"}
+                  ? t("保存更新")
+                  : t("检查并发布")}
             </button>
           </div>
         </div>
@@ -815,8 +817,8 @@ function ReportDialog({
       });
       notify(
         result.hidden
-          ? "已提交报告，该服务器已被临时隐藏，等待管理员复核"
-          : "已提交报告，感谢你的反馈",
+          ? t("已提交报告，该服务器已被临时隐藏，等待管理员复核")
+          : t("已提交报告，感谢你的反馈"),
         "success",
       );
       onClose();
@@ -851,49 +853,48 @@ function ReportDialog({
       >
         <div className="settings-head">
           <div>
-            <span className="eyebrow">社区维护</span>
-            <h2>报告「{target.name}」</h2>
+            <span className="eyebrow">{t("社区维护")}</span>
+            <h2>{t("报告「")}{target.name}」</h2>
           </div>
           <button
             type="button"
             className="icon-button"
             onClick={onClose}
             disabled={sending}
-            aria-label="关闭"
+            aria-label={t("关闭")}
           >
             <XIcon size={18} />
           </button>
         </div>
         <div className="settings-body">
           <p className="shared-server-report-hint">
-            如果服务器无法连接、实际配置与描述不符，或者存在安全风险，请告诉我们。24
-            小时内被报告 5 次的服务器会自动隐藏，等待管理员复核。
+            {t("如果服务器无法连接、实际配置与描述不符，或者存在安全风险，请告诉我们。24\n            小时内被报告 5 次的服务器会自动隐藏，等待管理员复核。")}
           </p>
           <label className="field">
             <div className="field-label">
-              <span>问题描述</span>
-              <span className="field-hint">选填 · 最多 200 字</span>
+              <span>{t("问题描述")}</span>
+              <span className="field-hint">{t("选填 · 最多 200 字")}</span>
             </div>
             <textarea
               className="shared-server-textarea"
               rows={3}
               maxLength={200}
               value={reason}
-              placeholder="例如：地址打不开，/health 返回 404"
+              placeholder={t("例如：地址打不开，/health 返回 404")}
               onChange={(event) => setReason(event.target.value)}
             />
           </label>
           {error && <InlineAlert>{error}</InlineAlert>}
         </div>
         <div className="settings-foot">
-          <span className="field-help">报告会提交给若道管理员复核。</span>
+          <span className="field-help">{t("报告会提交给若道管理员复核。")}</span>
           <div className="settings-actions">
             <button type="button" className="button ghost small" disabled={sending} onClick={onClose}>
-              取消
+              {t("取消")}
             </button>
             <button type="submit" className="button primary small" disabled={sending}>
               {sending ? <span className="spinner small" /> : <SendIcon size={15} />}
-              {sending ? "正在提交…" : "提交报告"}
+              {sending ? t("正在提交…") : t("提交报告")}
             </button>
           </div>
         </div>
@@ -935,7 +936,7 @@ export function SharedServersPanel({
     assistant.status && !assistant.status.authenticated && assistant.status.sessionExpired,
   );
   const accountLabel =
-    assistant.status?.user?.displayName || assistant.status?.email || "已登录若道账号";
+    assistant.status?.user?.displayName || assistant.status?.email || t("已登录若道账号");
 
   useEffect(() => {
     void assistant.ensureLoaded().finally(() => setAuthChecked(true));
@@ -999,7 +1000,7 @@ export function SharedServersPanel({
   }, [loadMine, signedIn]);
 
   const requireLogin = useCallback(
-    (message = "登录若道账号后即可查看共享服务器详情") => {
+    (message = t("登录若道账号后即可查看共享服务器详情")) => {
       notify(message, "info");
       setLoginFocus((value) => value + 1);
     },
@@ -1016,7 +1017,7 @@ export function SharedServersPanel({
   async function useServer(server: SharedServerInfo): Promise<void> {
     if (usingId) return;
     if (!server.address) {
-      notify("没有读取到服务器地址，请刷新列表或重新登录后再试", "error");
+      notify(t("没有读取到服务器地址，请刷新列表或重新登录后再试"), "error");
       return;
     }
     setUsingId(server.id);
@@ -1031,8 +1032,8 @@ export function SharedServersPanel({
 
   async function removeServer(entry: SharedServerMineEntry): Promise<void> {
     if (busyId) return;
-    const name = entry.server?.name ?? "这条记录";
-    if (!window.confirm(`下架后「${name}」会从共享列表中移除，且无法恢复。确定继续？`)) return;
+    const name = entry.server?.name ?? t("这条记录");
+    if (!window.confirm(tf("下架后「{0}」会从共享列表中移除，且无法恢复。确定继续？", name))) return;
     setBusyId(entry.id);
     try {
       await window.remote.sharedServersRemove({ id: entry.id });
@@ -1041,7 +1042,7 @@ export function SharedServersPanel({
           ? { ...current, entries: current.entries.filter((item) => item.id !== entry.id) }
           : current,
       );
-      notify("已下架共享服务器", "success");
+      notify(t("已下架共享服务器"), "success");
       setReloadKey((key) => key + 1);
     } catch (err) {
       notify(cleanError(err), "error");
@@ -1078,7 +1079,7 @@ export function SharedServersPanel({
   function openMine(): void {
     setTab("mine");
     if (!signedIn) {
-      requireLogin("登录若道账号后即可管理你的共享服务器");
+      requireLogin(t("登录若道账号后即可管理你的共享服务器"));
       return;
     }
     if (!mine || mine.refreshedAt === null || Date.now() - mine.refreshedAt > 60_000) {
@@ -1094,16 +1095,16 @@ export function SharedServersPanel({
             <span className="eyebrow-icon">
               <GlobeIcon size={14} />
             </span>
-            共享服务器
+            {t("共享服务器")}
           </span>
-          <h1>用社区分享的服务器，免费直连</h1>
+          <h1>{t("用社区分享的服务器，免费直连")}</h1>
           <p>
-            这里汇总社区成员自愿公开的若道远程信令服务器。列表无需登录即可浏览，登录若道账号后可查看完整详情并一键接入。
+            {t("这里汇总社区成员自愿公开的若道远程信令服务器。列表无需登录即可浏览，登录若道账号后可查看完整详情并一键接入。")}
           </p>
         </div>
         <div className="panel-heading-actions">
           {signedIn && (
-            <span className="shared-account-chip" title="社区留言与共享服务器共用此若道账号">
+            <span className="shared-account-chip" title={t("社区留言与共享服务器共用此若道账号")}>
               <UserIcon size={14} />
               <span>{accountLabel}</span>
             </span>
@@ -1123,7 +1124,7 @@ export function SharedServersPanel({
             }}
           >
             <RefreshIcon size={15} />
-            刷新
+            {t("刷新")}
           </button>
           <button
             type="button"
@@ -1131,26 +1132,26 @@ export function SharedServersPanel({
             data-testid="shared-server-publish"
             onClick={() => {
               if (!signedIn) {
-                requireLogin("请先登录若道账号，再发布共享服务器");
+                requireLogin(t("请先登录若道账号，再发布共享服务器"));
                 return;
               }
               setDialog({ mode: "create" });
             }}
           >
             <SendIcon size={15} />
-            发布我的服务器
+            {t("发布我的服务器")}
           </button>
         </div>
       </div>
 
-      <nav className="server-tabs" aria-label="共享服务器视图">
+      <nav className="server-tabs" aria-label={t("共享服务器视图")}>
         <button
           type="button"
           className={`server-tab${tab === "list" ? " active" : ""}`}
           onClick={() => setTab("list")}
         >
           <GlobeIcon size={14} />
-          共享列表
+          {t("共享列表")}
           {pageData && <span className="server-tab-badge soft">{pageData.total}</span>}
         </button>
         <button
@@ -1159,16 +1160,16 @@ export function SharedServersPanel({
           onClick={openMine}
         >
           <ShieldIcon size={14} />
-          我的分享
+          {t("我的分享")}
           {activeMine > 0 && <span className="server-tab-badge">{activeMine}</span>}
         </button>
         <span className="server-updated">
           {updatedAt
-            ? `更新于 ${new Date(updatedAt).toLocaleTimeString("zh-CN", {
+            ? tf("更新于 {0}", new Date(updatedAt).toLocaleTimeString("zh-CN", {
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: false,
-              })}`
+              }))
             : ""}
         </span>
       </nav>
@@ -1181,13 +1182,13 @@ export function SharedServersPanel({
               expired={expired}
               focusSignal={loginFocus}
               onLoggedIn={() => {
-                notify("已登录若道账号，共享服务器与社区留言已同步登录", "success");
+                notify(t("已登录若道账号，共享服务器与社区留言已同步登录"), "success");
               }}
             />
           ) : (
             <div className="shared-login-checking">
               <span className="spinner small" />
-              正在检查若道登录状态…
+              {t("正在检查若道登录状态…")}
             </div>
           ))}
 
@@ -1198,7 +1199,7 @@ export function SharedServersPanel({
                 <SearchIcon size={16} />
                 <input
                   value={query}
-                  placeholder={signedIn ? "搜索名称、地区、配置或域名" : "搜索名称或地区"}
+                  placeholder={signedIn ? t("搜索名称、地区、配置或域名") : t("搜索名称或地区")}
                   spellCheck={false}
                   onChange={(event) => setQuery(event.target.value)}
                 />
@@ -1207,7 +1208,7 @@ export function SharedServersPanel({
                 <select
                   className="shared-server-select"
                   value={sort}
-                  aria-label="排序方式"
+                  aria-label={t("排序方式")}
                   onChange={(event) => setSort(event.target.value as SharedServerSort)}
                 >
                   {SORT_OPTIONS.map((option) => (
@@ -1223,7 +1224,7 @@ export function SharedServersPanel({
                   onClick={() => setOnlineOnly((value) => !value)}
                 >
                   <CheckIcon size={14} />
-                  仅看在线
+                  {t("仅看在线")}
                 </button>
               </div>
             </div>
@@ -1231,7 +1232,7 @@ export function SharedServersPanel({
             <div className="shared-server-note">
               <ShieldIcon size={16} />
               <span>
-                共享服务器由社区成员提供。若道只校验 /health 是否可达，不参与实际远控连接，也不保存远控码与访问密钥。列表公开浏览，完整详情与接入需登录若道账号；登录与社区留言通用。
+                {t("共享服务器由社区成员提供。若道只校验 /health 是否可达，不参与实际远控连接，也不保存远控码与访问密钥。列表公开浏览，完整详情与接入需登录若道账号；登录与社区留言通用。")}
               </span>
             </div>
 
@@ -1240,7 +1241,7 @@ export function SharedServersPanel({
                 <span className="shared-server-empty-icon error">
                   <AlertIcon size={24} />
                 </span>
-                <h2>暂时读不到共享列表</h2>
+                <h2>{t("暂时读不到共享列表")}</h2>
                 <p>{error}</p>
                 <button
                   type="button"
@@ -1248,38 +1249,38 @@ export function SharedServersPanel({
                   onClick={() => setReloadKey((key) => key + 1)}
                 >
                   <RefreshIcon size={15} />
-                  重新读取
+                  {t("重新读取")}
                 </button>
               </div>
             ) : loading && !pageData ? (
               <div className="shared-server-empty">
                 <span className="spinner large" />
-                <p>正在读取共享服务器…</p>
+                <p>{t("正在读取共享服务器…")}</p>
               </div>
             ) : !pageData || pageData.items.length === 0 ? (
               <div className="shared-server-empty">
                 <span className="shared-server-empty-icon">
                   <GlobeIcon size={24} />
                 </span>
-                <h2>{query || onlineOnly ? "没有找到匹配的服务器" : "还没有人分享服务器"}</h2>
+                <h2>{query || onlineOnly ? t("没有找到匹配的服务器") : t("还没有人分享服务器")}</h2>
                 <p>
                   {query || onlineOnly
-                    ? "换个关键词，或取消“仅看在线”再试试。"
-                    : "如果你有闲置的服务器，可以发布出来，让社区用户免费使用。"}
+                    ? t("换个关键词，或取消“仅看在线”再试试。")
+                    : t("如果你有闲置的服务器，可以发布出来，让社区用户免费使用。")}
                 </p>
                 <button
                   type="button"
                   className="button primary small"
                   onClick={() => {
                     if (!signedIn) {
-                      requireLogin("请先登录若道账号，再发布共享服务器");
+                      requireLogin(t("请先登录若道账号，再发布共享服务器"));
                       return;
                     }
                     setDialog({ mode: "create" });
                   }}
                 >
                   <SendIcon size={15} />
-                  发布我的服务器
+                  {t("发布我的服务器")}
                 </button>
               </div>
             ) : (
@@ -1306,10 +1307,10 @@ export function SharedServersPanel({
                       disabled={page <= 1 || loading}
                       onClick={() => setPage((value) => Math.max(1, value - 1))}
                     >
-                      上一页
+                      {t("上一页")}
                     </button>
                     <span>
-                      第 {page} / {totalPages} 页 · 共 {pageData.total} 台
+                      {t("第")} {page} / {totalPages} {t("页 · 共")} {pageData.total} {t("台")}
                     </span>
                     <button
                       type="button"
@@ -1317,7 +1318,7 @@ export function SharedServersPanel({
                       disabled={page >= totalPages || loading}
                       onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
                     >
-                      下一页
+                      {t("下一页")}
                     </button>
                   </div>
                 )}
@@ -1329,7 +1330,7 @@ export function SharedServersPanel({
             <div className="shared-server-note">
               <LockIcon size={16} />
               <span>
-                管理令牌只保存在这台电脑上，用来续期或下架你发布过的服务器。换一台电脑后无法再修改这些记录。查看和管理这些记录需要登录若道账号。
+                {t("管理令牌只保存在这台电脑上，用来续期或下架你发布过的服务器。换一台电脑后无法再修改这些记录。查看和管理这些记录需要登录若道账号。")}
               </span>
             </div>
 
@@ -1340,24 +1341,24 @@ export function SharedServersPanel({
                 <span className="shared-server-empty-icon">
                   <LockIcon size={24} />
                 </span>
-                <h2>登录后管理你的分享</h2>
+                <h2>{t("登录后管理你的分享")}</h2>
                 <p>
-                  你的共享记录和管理令牌只保存在本机；登录若道账号后即可查看、续期或下架。
+                  {t("你的共享记录和管理令牌只保存在本机；登录若道账号后即可查看、续期或下架。")}
                 </p>
               </div>
             ) : mineLoading && !mine ? (
               <div className="shared-server-empty">
                 <span className="spinner large" />
-                <p>正在读取本机保存的共享记录…</p>
+                <p>{t("正在读取本机保存的共享记录…")}</p>
               </div>
             ) : mineEntries.length === 0 ? (
               <div className="shared-server-empty">
                 <span className="shared-server-empty-icon">
                   <ServerIcon size={24} />
                 </span>
-                <h2>你还没有发布过共享服务器</h2>
+                <h2>{t("你还没有发布过共享服务器")}</h2>
                 <p>
-                  发布后，其他用户可以在「共享列表」里看到并直接使用；你随时可以在这里续期或下架。
+                  {t("发布后，其他用户可以在「共享列表」里看到并直接使用；你随时可以在这里续期或下架。")}
                 </p>
                 <button
                   type="button"
@@ -1365,7 +1366,7 @@ export function SharedServersPanel({
                   onClick={() => setDialog({ mode: "create" })}
                 >
                   <SendIcon size={15} />
-                  发布我的服务器
+                  {t("发布我的服务器")}
                 </button>
               </div>
             ) : (
@@ -1394,13 +1395,13 @@ export function SharedServersPanel({
 
       <div className="panel-foot trust-row">
         <span>
-          <ShieldIcon size={14} /> 发布前自动检查 /health，只接受 HTTPS 公网地址
+          <ShieldIcon size={14} /> {t("发布前自动检查 /health，只接受 HTTPS 公网地址")}
         </span>
         <span>
-          <LockIcon size={14} /> 列表公开可见，详情与接入需登录若道账号
+          <LockIcon size={14} /> {t("列表公开可见，详情与接入需登录若道账号")}
         </span>
         <span>
-          <GlobeIcon size={14} /> 请只连接你信任的共享服务器
+          <GlobeIcon size={14} /> {t("请只连接你信任的共享服务器")}
         </span>
       </div>
 

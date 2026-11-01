@@ -20,7 +20,13 @@ import { startMockApi } from "./mock-shared-api.mjs";
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverEntry = path.resolve(clientDir, "..", "server", "dist", "index.js");
 const workDir = path.join(clientDir, ".docs-shots");
-const outDir = path.resolve(clientDir, "..", "docs", "images");
+const cliArgs = process.argv.slice(2);
+const arg = (name, fallback) => {
+  const index = cliArgs.indexOf(`--${name}`);
+  return index >= 0 && cliArgs[index + 1] ? cliArgs[index + 1] : fallback;
+};
+const lang = arg("lang", "zh");
+const outDir = path.resolve(clientDir, "..", arg("out", "docs/images"));
 const require = createRequire(import.meta.url);
 const electronPath = require("electron");
 
@@ -109,7 +115,7 @@ const main = async () => {
   const userDataDir = path.join(workDir, `userdata-${stamp}`);
   await fs.mkdir(userDataDir, { recursive: true });
 
-  const mock = await startMockApi();
+  const mock = await startMockApi({ lang });
   const signalingPort = 18400 + Math.floor(Math.random() * 400);
   const cdpPort = 9500 + Math.floor(Math.random() * 300);
 
@@ -262,6 +268,7 @@ const main = async () => {
       throw new Error(`测试配置未隔离：serverUrl=${settings.serverUrl}`);
     }
     await evaluate("localStorage.setItem('ruodao-remote.onboarding.v1','done')");
+    await evaluate(`localStorage.setItem('ruodao-remote.language', ${JSON.stringify(lang)})`);
     await cdp.send("Page.reload", { ignoreCache: false });
     await sleep(1500);
     await waitFor("Boolean(document.querySelector('[data-testid=tab-host]'))", "应用界面重新就绪");

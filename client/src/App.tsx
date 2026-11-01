@@ -33,11 +33,14 @@ import { buildDiagnosis, type Diagnosis } from "./lib/diagnosis";
 import { markOnboardingDone, shouldShowOnboarding } from "./lib/onboarding";
 import type { AppInfo, Settings, SettingsPatch, Toast, ToastKind } from "./types";
 
+import { t, tf } from "./i18n";
+
+
 const EMPTY_DIAGNOSIS: Diagnosis = {
   issues: [],
   context: "",
   suggestions: [],
-  headline: "当前状态正常",
+  headline: t("当前状态正常"),
 };
 
 type Tab = "host" | "control" | "server" | "shared" | "community";
@@ -107,7 +110,8 @@ export default function App() {
     (message: string, kind: ToastKind = "info") => {
       const id = toastSeq.current + 1;
       toastSeq.current = id;
-      setToasts((list) => [...list.slice(-3), { id, message, kind }]);
+      // 主进程返回的提示直接是中文，这里统一再过一次词典。
+      setToasts((list) => [...list.slice(-3), { id, message: t(message), kind }]);
       const timer = window.setTimeout(() => {
         toastTimers.current.delete(id);
         setToasts((list) => list.filter((toast) => toast.id !== id));
@@ -131,7 +135,7 @@ export default function App() {
         const stored = await window.remote.getSettings();
         setSettings(stored);
       } catch (error) {
-        notify(error instanceof Error ? error.message : "读取新的服务器配置失败", "error");
+        notify(error instanceof Error ? error.message : t("读取新的服务器配置失败"), "error");
       }
     },
   });
@@ -220,7 +224,7 @@ export default function App() {
         setSettings(stored);
       } catch (error) {
         if (cancelled) return;
-        setBootError(error instanceof Error ? error.message : "客户端初始化失败");
+        setBootError(error instanceof Error ? error.message : t("客户端初始化失败"));
       }
     })();
     return () => {
@@ -239,7 +243,7 @@ export default function App() {
   const sessionId = host.session?.sessionId ?? null;
   useEffect(() => {
     if (sessionId && host.session) {
-      notify(`“${host.session.controllerName}”已接入本机`, "info");
+      notify(tf("“{0}”已接入本机", host.session.controllerName), "info");
     }
   }, [sessionId]);
 
@@ -249,17 +253,17 @@ export default function App() {
     if (!updateVersion) return;
     if (updatePhase === "available" && updateNotified.current !== `available:${updateVersion}`) {
       updateNotified.current = `available:${updateVersion}`;
-      notify(`发现新版本 v${updateVersion}，点右上角版本号查看`, "info");
+      notify(tf("发现新版本 v{0}，点右上角版本号查看", updateVersion), "info");
     }
     if (updatePhase === "ready" && updateNotified.current !== `ready:${updateVersion}`) {
       updateNotified.current = `ready:${updateVersion}`;
-      notify(`新版本 v${updateVersion} 已下载，退出应用时自动安装`, "success");
+      notify(tf("新版本 v{0} 已下载，退出应用时自动安装", updateVersion), "success");
     }
   }, [updatePhase, updateVersion, notify]);
 
   async function saveSettings(
     patch: SettingsPatch,
-    message = "设置已保存",
+    message = t("设置已保存"),
   ): Promise<void> {
     const hostActive = host.phase === "online" || host.phase === "connecting" || host.phase === "pending";
     const controlling = controller.phase !== "idle" && controller.phase !== "error";
@@ -280,13 +284,13 @@ export default function App() {
     const controlling = controller.phase !== "idle" && controller.phase !== "error";
     if (
       (hostActive || controlling) &&
-      !window.confirm("切换服务器会断开当前连接，确定继续吗？")
+      !window.confirm(t("切换服务器会断开当前连接，确定继续吗？"))
     ) {
       return;
     }
     await saveSettings(
       { serverUrl: url, inviteCode },
-      `已填入「${name}」的服务器地址和邀请码，输入远控码即可连接`,
+      tf("已填入「{0}」的服务器地址和邀请码，输入远控码即可连接", name),
     );
     setTab("control");
   }
@@ -294,7 +298,7 @@ export default function App() {
   async function applyInvite(code: string): Promise<void> {
     const next = await window.remote.updateSettings({ inviteCode: code });
     setSettings(next);
-    notify("邀请码已填入，可在「本机被控」页开启启动自动被控", "success");
+    notify(t("邀请码已填入，可在「本机被控」页开启启动自动被控"), "success");
   }
 
   async function updatePreference(patch: SettingsPatch, message: string): Promise<void> {
@@ -303,7 +307,7 @@ export default function App() {
       setSettings(next);
       notify(message, "success");
     } catch (error) {
-      notify(error instanceof Error ? error.message : "保存启动偏好失败", "error");
+      notify(error instanceof Error ? error.message : t("保存启动偏好失败"), "error");
     }
   }
 
@@ -315,20 +319,20 @@ export default function App() {
         </span>
         {bootError ? (
           <>
-            <h1>客户端未能启动</h1>
+            <h1>{t("客户端未能启动")}</h1>
             <p className="boot-error">{bootError}</p>
             <button
               type="button"
               className="button primary"
               onClick={() => window.location.reload()}
             >
-              重新启动
+              {t("重新启动")}
             </button>
           </>
         ) : (
           <>
             <span className="spinner large" />
-            <p>正在准备安全连接…</p>
+            <p>{t("正在准备安全连接…")}</p>
           </>
         )}
       </div>
@@ -348,12 +352,12 @@ export default function App() {
             <LinkIcon size={22} />
           </span>
           <div className="brand-copy">
-            <span className="brand-name">若道远程</span>
-            <span className="brand-sub">免注册 · 远控码直连</span>
+            <span className="brand-name">{t("若道远程")}</span>
+            <span className="brand-sub">{t("免注册 · 远控码直连")}</span>
           </div>
         </div>
 
-        <nav className="mode-tabs" aria-label="使用模式">
+        <nav className="mode-tabs" aria-label={t("使用模式")}>
           <button
             type="button"
             data-testid="tab-host"
@@ -361,8 +365,8 @@ export default function App() {
             onClick={() => setTab("host")}
           >
             <MonitorIcon size={16} />
-            本机被控
-            {host.session && <span className="tab-dot" aria-label="会话进行中" />}
+            {t("本机被控")}
+            {host.session && <span className="tab-dot" aria-label={t("会话进行中")} />}
           </button>
           <button
             type="button"
@@ -371,9 +375,9 @@ export default function App() {
             onClick={() => setTab("control")}
           >
             <MousePointerIcon size={16} />
-            控制远程设备
+            {t("控制远程设备")}
             {controller.phase === "connected" && (
-              <span className="tab-dot" aria-label="会话进行中" />
+              <span className="tab-dot" aria-label={t("会话进行中")} />
             )}
           </button>
           <button
@@ -383,8 +387,8 @@ export default function App() {
             onClick={() => setTab("server")}
           >
             <ServerIcon size={16} />
-            服务端
-            {settings.adminReady && <span className="tab-dot" aria-label="已保存管理员密码" />}
+            {t("服务端")}
+            {settings.adminReady && <span className="tab-dot" aria-label={t("已保存管理员密码")} />}
           </button>
           <button
             type="button"
@@ -393,7 +397,7 @@ export default function App() {
             onClick={() => setTab("shared")}
           >
             <GlobeIcon size={16} />
-            共享服务器
+            {t("共享服务器")}
           </button>
           <button
             type="button"
@@ -402,7 +406,7 @@ export default function App() {
             onClick={() => setTab("community")}
           >
             <ChatIcon size={16} />
-            社区留言
+            {t("社区留言")}
           </button>
         </nav>
 
@@ -413,20 +417,20 @@ export default function App() {
               className="header-action"
               data-testid="open-help"
               onClick={openGuide}
-              title="使用指南"
+              title={t("使用指南")}
             >
               <HelpIcon size={17} />
-              <span>使用指南</span>
+              <span>{t("使用指南")}</span>
             </button>
             <button
               type="button"
               className="header-action ai"
               data-testid="open-assistant"
               onClick={() => openAssistant()}
-              title="问 AI"
+              title={t("问 AI")}
             >
               <SparkIcon size={17} />
-              <span>问 AI</span>
+              <span>{t("问 AI")}</span>
             </button>
           </div>
           <button
@@ -439,8 +443,8 @@ export default function App() {
             data-testid="open-update"
             title={
               updatePhase === "available" || updatePhase === "ready"
-                ? `新版本 v${updateVersion} 可用`
-                : "查看软件更新"
+                ? tf("新版本 v{0} 可用", updateVersion)
+                : t("查看软件更新")
             }
             onClick={() => setUpdateOpen(true)}
           >
@@ -453,8 +457,8 @@ export default function App() {
             type="button"
             className="icon-button"
             data-testid="open-settings"
-            aria-label="打开设置"
-            title="设置"
+            aria-label={t("打开设置")}
+            title={t("设置")}
             onClick={() => setSettingsOpen(true)}
           >
             <SettingsIcon size={19} />
@@ -495,13 +499,13 @@ export default function App() {
             onToggleAutoStart={(value) =>
               void updatePreference(
                 { autoStartHost: value },
-                value ? "已开启：下次启动会自动开始被控" : "已关闭启动自动被控",
+                value ? t("已开启：下次启动会自动开始被控") : t("已关闭启动自动被控"),
               )
             }
             onToggleLaunchAtLogin={(value) =>
               void updatePreference(
                 { launchAtLogin: value },
-                value ? "已开启开机自动启动" : "已关闭开机自动启动",
+                value ? t("已开启开机自动启动") : t("已关闭开机自动启动"),
               )
             }
             onSendChat={host.sendChat}
@@ -575,16 +579,16 @@ export default function App() {
       </main>
 
       <footer className="app-foot">
-        <span>若道远程 · 自建信令 · 无账号模式</span>
+        <span>{t("若道远程 · 自建信令 · 无账号模式")}</span>
         <span className="foot-sep" />
-        <span>当前系统：{appInfo?.inputAvailable ? "支持输入控制" : "仅观看画面"}</span>
+        <span>{t("当前系统：")}{appInfo?.inputAvailable ? t("支持输入控制") : t("仅观看画面")}</span>
         <span className="foot-sep" />
         <button type="button" className="foot-link" onClick={openGuide}>
-          使用指南
+          {t("使用指南")}
         </button>
         <span className="foot-sep" />
         <button type="button" className="foot-link ai" onClick={() => openAssistant()}>
-          问 AI
+          {t("问 AI")}
         </button>
       </footer>
 

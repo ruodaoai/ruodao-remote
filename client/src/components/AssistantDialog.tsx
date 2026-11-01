@@ -36,6 +36,8 @@ import {
 } from "./icons";
 import { InlineAlert } from "./ui";
 
+import { t, tf } from "../i18n";
+
 interface AssistantDialogProps {
   open: boolean;
   assistant: AssistantController;
@@ -171,12 +173,12 @@ export function AssistantDialog({
     const fresh = urls.filter((url) => !existing.has(url));
     const room = ASSISTANT_IMAGE_LIMIT - imagesRef.current.length;
     if (room <= 0) {
-      setImageError(`最多添加 ${ASSISTANT_IMAGE_LIMIT} 张图片，请先移除一张。`);
+      setImageError(tf("最多添加 {0} 张图片，请先移除一张。", ASSISTANT_IMAGE_LIMIT));
       return;
     }
     const accepted = fresh.slice(0, room);
     if (accepted.length < fresh.length) {
-      setImageError(`最多添加 ${ASSISTANT_IMAGE_LIMIT} 张图片，多余的已忽略。`);
+      setImageError(tf("最多添加 {0} 张图片，多余的已忽略。", ASSISTANT_IMAGE_LIMIT));
     }
     if (accepted.length > 0) applyImages([...imagesRef.current, ...accepted]);
   }
@@ -197,7 +199,7 @@ export function AssistantDialog({
         try {
           prepared.push(await prepareImageFile(file));
         } catch (error) {
-          errors.push(error instanceof Error ? error.message : "图片处理失败，请换一张再试。");
+          errors.push(error instanceof Error ? error.message : t("图片处理失败，请换一张再试。"));
         }
       }
       if (prepared.length > 0) appendPreparedImages(prepared);
@@ -214,12 +216,12 @@ export function AssistantDialog({
     try {
       const dataUrl = await window.remote.readClipboardImage();
       if (!dataUrl) {
-        setImageError("剪贴板里没有图片，请先截图或复制图片。");
+        setImageError(t("剪贴板里没有图片，请先截图或复制图片。"));
         return;
       }
       appendPreparedImages([await prepareImageDataUrl(dataUrl)]);
     } catch (error) {
-      setImageError(error instanceof Error ? error.message : "读取剪贴板图片失败。");
+      setImageError(error instanceof Error ? error.message : t("读取剪贴板图片失败。"));
     } finally {
       setImageBusy(false);
     }
@@ -232,7 +234,7 @@ export function AssistantDialog({
     } catch {
       ok = false;
     }
-    setCopyNotice(ok ? "已复制图片" : "复制图片失败");
+    setCopyNotice(ok ? t("已复制图片") : t("复制图片失败"));
     window.setTimeout(() => setCopyNotice(null), 2200);
   }
 
@@ -279,7 +281,7 @@ export function AssistantDialog({
       file.type.startsWith("image/"),
     );
     if (files.length === 0) {
-      setImageError("请拖入图片文件（PNG、JPG、WebP 或 GIF）。");
+      setImageError(t("请拖入图片文件（PNG、JPG、WebP 或 GIF）。"));
       return;
     }
     void addImageFiles(files);
@@ -348,7 +350,7 @@ export function AssistantDialog({
     const imageList = attached.slice();
     if ((!text && imageList.length === 0) || assistant.chatBusy || imageBusy || !loggedIn) return;
     if (imageList.length > 0 && !modelSupportsImages) {
-      setImageError("当前模型不支持图片输入，请先切换到支持图片的模型。");
+      setImageError(t("当前模型不支持图片输入，请先切换到支持图片的模型。"));
       return;
     }
     const appendUser = options.appendUser !== false;
@@ -438,16 +440,16 @@ export function AssistantDialog({
             <SparkIcon size={22} />
           </span>
           <div className="assistant-head-copy">
-            <span className="eyebrow">AI 使用助手</span>
-            <h2>{loggedIn ? "哪里看不懂，直接问我" : "登录若道账号，让 AI 帮你判断"}</h2>
-            <p>结合当前连接与部署状态回答，只讨论若道远程的安装、配置与使用。</p>
+            <span className="eyebrow">{t("AI 使用助手")}</span>
+            <h2>{loggedIn ? t("哪里看不懂，直接问我") : t("登录若道账号，让 AI 帮你判断")}</h2>
+            <p>{t("结合当前连接与部署状态回答，只讨论若道远程的安装、配置与使用。")}</p>
           </div>
           <div className="assistant-head-actions">
             <button type="button" className="button ghost small" onClick={onOpenGuide}>
               <BookIcon size={15} />
-              使用指南
+              {t("使用指南")}
             </button>
-            <button type="button" className="icon-button" aria-label="关闭 AI 助手" onClick={onClose}>
+            <button type="button" className="icon-button" aria-label={t("关闭 AI 助手")} onClick={onClose}>
               <XIcon size={18} />
             </button>
           </div>
@@ -456,37 +458,37 @@ export function AssistantDialog({
         {!status && assistant.loading ? (
           <div className="assistant-loading">
             <span className="spinner large" />
-            <p>正在检查若道登录状态…</p>
+            <p>{t("正在检查若道登录状态…")}</p>
           </div>
         ) : !loggedIn ? (
           <div className="assistant-login">
             <div className="assistant-login-copy">
               <span className="assistant-kicker">
-                <ShieldIcon size={15} /> 只发送必要信息
+                <ShieldIcon size={15} /> {t("只发送必要信息")}
               </span>
-              <h3>AI 能看到什么？</h3>
+              <h3>{t("AI 能看到什么？")}</h3>
               <ul className="assistant-facts">
                 <li>
                   <CheckIcon size={15} />
-                  客户端版本、服务器地址、连接状态和最近错误
+                  {t("客户端版本、服务器地址、连接状态和最近错误")}
                 </li>
                 <li>
                   <LockIcon size={15} />
-                  不包含密码、访问密钥、远控码、邀请码或 SSH 私钥
+                  {t("不包含密码、访问密钥、远控码、邀请码或 SSH 私钥")}
                 </li>
                 <li>
                   <EyeIcon size={15} />
-                  发送前可以在对话页展开“查看将发送的状态”
+                  {t("发送前可以在对话页展开“查看将发送的状态”")}
                 </li>
                 <li>
                   <ShieldIcon size={15} />
-                  登录令牌使用系统加密存储保存在本机，不保存账号密码
+                  {t("登录令牌使用系统加密存储保存在本机，不保存账号密码")}
                 </li>
               </ul>
               <div className="assistant-login-note">
                 <InfoIcon size={15} />
                 <span>
-                  没有若道账号也可以继续使用远控功能。只有 AI 助手需要登录，用于调用你账号下的模型。
+                  {t("没有若道账号也可以继续使用远控功能。只有 AI 助手需要登录，用于调用你账号下的模型。")}
                 </span>
               </div>
               <div className="assistant-login-links">
@@ -495,7 +497,7 @@ export function AssistantDialog({
                   className="text-button"
                   onClick={() => void assistant.openAccount("register")}
                 >
-                  注册若道账号
+                  {t("注册若道账号")}
                 </button>
                 <span>·</span>
                 <button
@@ -503,7 +505,7 @@ export function AssistantDialog({
                   className="text-button"
                   onClick={() => void assistant.openAccount("login")}
                 >
-                  在浏览器中登录
+                  {t("在浏览器中登录")}
                 </button>
               </div>
             </div>
@@ -516,14 +518,14 @@ export function AssistantDialog({
               }}
             >
               <span className="assistant-kicker">
-                <UserIcon size={15} /> 若道账号
+                <UserIcon size={15} /> {t("若道账号")}
               </span>
               {expired && (
-                <InlineAlert kind="info">登录已过期，请重新输入密码。远控连接不受影响。</InlineAlert>
+                <InlineAlert kind="info">{t("登录已过期，请重新输入密码。远控连接不受影响。")}</InlineAlert>
               )}
               <label className="field">
                 <div className="field-label">
-                  <span>邮箱</span>
+                  <span>{t("邮箱")}</span>
                 </div>
                 <div className="input-shell">
                   <UserIcon size={17} />
@@ -540,7 +542,7 @@ export function AssistantDialog({
               </label>
               <label className="field">
                 <div className="field-label">
-                  <span>密码</span>
+                  <span>{t("密码")}</span>
                 </div>
                 <div className="input-shell">
                   <LockIcon size={17} />
@@ -549,7 +551,7 @@ export function AssistantDialog({
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="若道账号密码"
+                    placeholder={t("若道账号密码")}
                     autoComplete="current-password"
                     maxLength={256}
                   />
@@ -557,7 +559,7 @@ export function AssistantDialog({
                     type="button"
                     className="input-action"
                     onClick={() => setShowPassword((value) => !value)}
-                    aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                    aria-label={showPassword ? t("隐藏密码") : t("显示密码")}
                   >
                     {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                   </button>
@@ -571,10 +573,10 @@ export function AssistantDialog({
                 disabled={assistant.loginBusy || !email.trim() || !password}
               >
                 {assistant.loginBusy ? <span className="spinner" /> : <SparkIcon size={16} />}
-                {assistant.loginBusy ? "正在登录…" : "登录并开始提问"}
+                {assistant.loginBusy ? t("正在登录…") : t("登录并开始提问")}
               </button>
               <p className="assistant-login-hint">
-                登录后会读取你账号下可用于文本问答的模型；没有模型时可在“我的模型”中添加。
+                {t("登录后会读取你账号下可用于文本问答的模型；没有模型时可在“我的模型”中添加。")}
               </p>
             </form>
           </div>
@@ -586,22 +588,22 @@ export function AssistantDialog({
                   <UserIcon size={16} />
                 </span>
                 <div>
-                  <strong>{status?.user?.displayName || status?.email || "若道账号"}</strong>
+                  <strong>{status?.user?.displayName || status?.email || t("若道账号")}</strong>
                   <span>{status?.email}</span>
                 </div>
               </div>
               <div className="assistant-account-actions">
                 {status && status.models.length > 0 && (
                   <label className="assistant-model">
-                    <span>模型</span>
+                    <span>{t("模型")}</span>
                     <select
                       value={model}
                       onChange={(event) => setModel(event.target.value)}
-                      aria-label="选择 AI 模型"
+                      aria-label={t("选择 AI 模型")}
                     >
                       {status.models.map((item) => (
                         <option key={item.id} value={item.modelName}>
-                          {item.inputTypes.includes("image") ? `${item.label} · 支持图片` : item.label}
+                          {item.inputTypes.includes("image") ? tf("{0} · 支持图片", item.label) : item.label}
                         </option>
                       ))}
                     </select>
@@ -610,15 +612,15 @@ export function AssistantDialog({
                 <button
                   type="button"
                   className="icon-button subtle"
-                  title="刷新模型列表"
-                  aria-label="刷新模型列表"
+                  title={t("刷新模型列表")}
+                  aria-label={t("刷新模型列表")}
                   disabled={assistant.loading}
                   onClick={() => void assistant.refreshModels()}
                 >
                   <RefreshIcon size={16} />
                 </button>
                 <button type="button" className="text-button" onClick={() => void assistant.logout()}>
-                  退出
+                  {t("退出")}
                 </button>
               </div>
             </div>
@@ -628,7 +630,7 @@ export function AssistantDialog({
                 <div>
                   <InfoIcon size={14} />
                   <span>
-                    本次对话会附带当前状态摘要，文字会自动隐藏密码、密钥和邀请码；图片会原样发送，请先遮挡敏感内容。
+                    {t("本次对话会附带当前状态摘要，文字会自动隐藏密码、密钥和邀请码；图片会原样发送，请先遮挡敏感内容。")}
                   </span>
                 </div>
                 <button
@@ -637,7 +639,7 @@ export function AssistantDialog({
                   onClick={() => setShowContext((value) => !value)}
                   aria-expanded={showContext}
                 >
-                  {showContext ? "收起状态" : "查看将发送的状态"}
+                  {showContext ? t("收起状态") : t("查看将发送的状态")}
                 </button>
               </div>
               {showContext && <pre className="assistant-context">{diagnosis.context}</pre>}
@@ -648,10 +650,9 @@ export function AssistantDialog({
                     <span className="assistant-welcome-icon">
                       <SparkIcon size={24} />
                     </span>
-                    <h3>说说你卡在哪一步</h3>
+                    <h3>{t("说说你卡在哪一步")}</h3>
                     <p>
-                      我可以结合当前状态和截图判断连接失败、部署报错、邀请码和审批等问题。
-                      可以直接粘贴截图或拖入图片，但请先遮挡密码、访问密钥和远控码。
+                      {t("我可以结合当前状态和截图判断连接失败、部署报错、邀请码和审批等问题。\n                      可以直接粘贴截图或拖入图片，但请先遮挡密码、访问密钥和远控码。")}
                     </p>
                     <div className="assistant-suggestions">
                       {suggestions.map((question) => (
@@ -675,14 +676,14 @@ export function AssistantDialog({
                             className="text-button"
                             onClick={() => void assistant.refreshModels()}
                           >
-                            刷新模型
+                            {t("刷新模型")}
                           </button>
                           <button
                             type="button"
                             className="text-button"
                             onClick={() => void assistant.openAccount("models")}
                           >
-                            打开若道「我的模型」
+                            {t("打开若道「我的模型」")}
                           </button>
                         </div>
                       </div>
@@ -701,14 +702,14 @@ export function AssistantDialog({
                               <div className="assistant-message-image" key={index}>
                                 <img
                                   src={image}
-                                  alt={`发送的截图 ${index + 1}`}
+                                  alt={tf("发送的截图 {0}", index + 1)}
                                   onClick={() => void copyImage(image)}
                                 />
                                 <button
                                   type="button"
                                   className="assistant-message-image-copy"
-                                  title="复制这张图片"
-                                  aria-label={`复制第 ${index + 1} 张图片`}
+                                  title={t("复制这张图片")}
+                                  aria-label={tf("复制第 {0} 张图片", index + 1)}
                                   onClick={() => void copyImage(image)}
                                 >
                                   <CopyIcon size={13} />
@@ -732,13 +733,13 @@ export function AssistantDialog({
                     </span>
                     <div className="assistant-message-bubble assistant-thinking">
                       <span className="spinner small" />
-                      正在结合当前状态分析…
+                      {t("正在结合当前状态分析…")}
                     </div>
                   </div>
                 )}
                 {failedTurn && !assistant.chatBusy && (
                   <div className="assistant-retry">
-                    <InlineAlert>{errorText || "这次没有收到回答，请稍后再试。"}</InlineAlert>
+                    <InlineAlert>{errorText || t("这次没有收到回答，请稍后再试。")}</InlineAlert>
                     <button
                       type="button"
                       className="button ghost small"
@@ -747,7 +748,7 @@ export function AssistantDialog({
                       }
                     >
                       <RefreshIcon size={14} />
-                      重试这个问题
+                      {t("重试这个问题")}
                     </button>
                   </div>
                 )}
@@ -759,7 +760,7 @@ export function AssistantDialog({
                       className="text-button"
                       onClick={() => void assistant.refreshModels()}
                     >
-                      刷新模型
+                      {t("刷新模型")}
                     </button>
                   </div>
                 )}
@@ -780,11 +781,11 @@ export function AssistantDialog({
                   <div className="assistant-attachments" data-testid="assistant-attachments">
                     {images.map((image, index) => (
                       <div className="assistant-attachment" key={index}>
-                        <img src={image} alt={`待发送截图 ${index + 1}`} />
+                        <img src={image} alt={tf("待发送截图 {0}", index + 1)} />
                         <button
                           type="button"
                           className="assistant-attachment-remove"
-                          aria-label={`移除第 ${index + 1} 张图片`}
+                          aria-label={tf("移除第 {0} 张图片", index + 1)}
                           disabled={assistant.chatBusy}
                           onClick={() => removeImage(index)}
                         >
@@ -793,14 +794,14 @@ export function AssistantDialog({
                       </div>
                     ))}
                     <span className="assistant-attachments-hint">
-                      {images.length}/{ASSISTANT_IMAGE_LIMIT} 张，随问题一起发送
+                      {images.length}/{ASSISTANT_IMAGE_LIMIT} {t("张，随问题一起发送")}
                     </span>
                   </div>
                 )}
                 {imageError && <InlineAlert>{imageError}</InlineAlert>}
                 {images.length > 0 && !modelSupportsImages && (
                   <InlineAlert kind="info">
-                    当前模型不支持图片输入，切换到支持图片的模型后才能发送。
+                    {t("当前模型不支持图片输入，切换到支持图片的模型后才能发送。")}
                   </InlineAlert>
                 )}
                 <textarea
@@ -809,13 +810,13 @@ export function AssistantDialog({
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={handleComposerKeyDown}
                   onPaste={handleComposerPaste}
-                  placeholder="描述你看到的现象，例如：部署到“配置网站入口”时失败了…（可粘贴或拖入截图）"
+                  placeholder={t("描述你看到的现象，例如：部署到“配置网站入口”时失败了…（可粘贴或拖入截图）")}
                   rows={2}
                   maxLength={2000}
                   disabled={assistant.chatBusy}
                 />
                 <div className="assistant-composer-foot">
-                  <span>Enter 发送 · Shift + Enter 换行 · 图片请先遮挡密钥</span>
+                  <span>{t("Enter 发送 · Shift + Enter 换行 · 图片请先遮挡密钥")}</span>
                   <div className="assistant-composer-actions">
                     <input
                       ref={fileInputRef}
@@ -830,8 +831,8 @@ export function AssistantDialog({
                       className="text-button assistant-image-button"
                       title={
                         modelSupportsImages
-                          ? "添加图片（也可以直接粘贴或拖入）"
-                          : "当前模型不支持图片输入，请先切换模型"
+                          ? t("添加图片（也可以直接粘贴或拖入）")
+                          : t("当前模型不支持图片输入，请先切换模型")
                       }
                       disabled={
                         assistant.chatBusy ||
@@ -842,7 +843,7 @@ export function AssistantDialog({
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <ImageIcon size={15} />
-                      {imageBusy ? "处理中…" : "图片"}
+                      {imageBusy ? t("处理中…") : t("图片")}
                     </button>
                     {messages.length > 0 && (
                       <button
@@ -858,7 +859,7 @@ export function AssistantDialog({
                           applyImages([]);
                         }}
                       >
-                        新对话
+                        {t("新对话")}
                       </button>
                     )}
                     <button
@@ -868,7 +869,7 @@ export function AssistantDialog({
                       disabled={!canSend}
                     >
                       <SendIcon size={15} />
-                      发送
+                      {t("发送")}
                     </button>
                   </div>
                 </div>
@@ -881,10 +882,10 @@ export function AssistantDialog({
         <footer className="assistant-foot">
           <span>
             <AlertIcon size={13} />
-            AI 回答可能出错，涉及删除数据、开放公网或修改防火墙时请先确认影响。
+            {t("AI 回答可能出错，涉及删除数据、开放公网或修改防火墙时请先确认影响。")}
           </span>
           <span className="assistant-foot-account">
-            {status?.apiBaseUrl ? `若道服务：${status.apiBaseUrl}` : "若道账号体系"}
+            {status?.apiBaseUrl ? tf("若道服务：{0}", status.apiBaseUrl) : t("若道账号体系")}
           </span>
         </footer>
       </div>

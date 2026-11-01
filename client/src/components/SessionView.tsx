@@ -36,12 +36,15 @@ import {
   XIcon,
 } from "./icons";
 
+import { t, tf } from "../i18n";
+
+
 type ViewMode = "fit" | "fill" | "actual";
 
 const VIEW_MODES: Array<{ id: ViewMode; label: string; hint: string }> = [
-  { id: "fit", label: "适应", hint: "完整显示画面，可能留有黑边" },
-  { id: "fill", label: "填充", hint: "铺满窗口，边缘可能被裁切" },
-  { id: "actual", label: "原尺寸", hint: "按对方屏幕原始像素显示，可滚动查看" },
+  { id: "fit", label: t("适应"), hint: t("完整显示画面，可能留有黑边") },
+  { id: "fill", label: t("填充"), hint: t("铺满窗口，边缘可能被裁切") },
+  { id: "actual", label: t("原尺寸"), hint: t("按对方屏幕原始像素显示，可滚动查看") },
 ];
 
 interface SessionViewProps {
@@ -355,36 +358,36 @@ export function SessionView({
   const verdict = assessNetwork(stats);
   const serverHint = serverStats
     ? [
-        `服务器出口 ${formatKbps(serverStats.bandwidthOutKbps)} / 入口 ${formatKbps(serverStats.bandwidthInKbps)}`,
+        tf("服务器出口 {0} / 入口 {1}", formatKbps(serverStats.bandwidthOutKbps), formatKbps(serverStats.bandwidthInKbps)),
         `CPU ${serverStats.cpuPct}%`,
-        `负载 ${serverStats.load1.toFixed(2)}`,
-        `内存 ${serverStats.memoryPct}%`,
-        `事件循环延迟 ${serverStats.lagMs} ms`,
-        `当前 ${serverStats.sessions} 路远控 · ${serverStats.peers} 个在线连接`,
+        tf("负载 {0}", serverStats.load1.toFixed(2)),
+        tf("内存 {0}%", serverStats.memoryPct),
+        tf("事件循环延迟 {0} ms", serverStats.lagMs),
+        tf("当前 {0} 路远控 · {1} 个在线连接", serverStats.sessions, serverStats.peers),
       ].join(" · ")
     : undefined;
   const clipboardTitle = !channelReady
-    ? "控制通道建立后可同步剪贴板"
+    ? t("控制通道建立后可同步剪贴板")
     : !clipboardAllowed
-      ? "对方未允许剪贴板同步"
+      ? t("对方未允许剪贴板同步")
       : clipboardEnabled
-        ? "关闭剪贴板同步"
-        : "开启剪贴板同步（仅文本，请确认对方可信）";
+        ? t("关闭剪贴板同步")
+        : t("开启剪贴板同步（仅文本，请确认对方可信）");
 
   return (
     <div className={`session-shell${fullscreen ? " is-fullscreen" : ""}`} ref={shellRef}>
       <div className="session-toolbar">
         <div className="session-peer">
-          <span className="peer-avatar">{(hostName?.name ?? "远").slice(0, 1).toUpperCase()}</span>
+          <span className="peer-avatar">{(hostName?.name ?? t("远")).slice(0, 1).toUpperCase()}</span>
           <div className="peer-meta">
-            <strong>{hostName?.name ?? "远程设备"}</strong>
+            <strong>{hostName?.name ?? t("远程设备")}</strong>
             <span className={`session-state ${channelReady ? "online" : ""}`}>
               <span className="live-dot" />
               {channelReady
                 ? inputPaused
-                  ? "仅查看 · 输入已暂停"
-                  : "安全连接"
-                : "正在建立加密通道"}
+                  ? t("仅查看 · 输入已暂停")
+                  : t("安全连接")
+                : t("正在建立加密通道")}
             </span>
           </div>
         </div>
@@ -399,37 +402,37 @@ export function SessionView({
           {stats && stats.kbps > 0 && <span className="stat-chip">{formatKbps(stats.kbps)}</span>}
           {stats && stats.rttMs > 0 && <span className="stat-chip">{stats.rttMs} ms</span>}
           {stats && stats.lossPct >= 0.5 && (
-            <span className="stat-chip warn">丢包 {stats.lossPct.toFixed(1)}%</span>
+            <span className="stat-chip warn">{t("丢包")} {stats.lossPct.toFixed(1)}%</span>
           )}
           {channelReady && (
             <span
               className={`stat-chip verdict ${verdict.level}`}
-              title={`网络质量：${verdict.detail}`}
+              title={tf("网络质量：{0}", verdict.detail)}
             >
               {verdict.label}
             </span>
           )}
           {serverStats && (
             <span className="stat-chip server" title={serverHint}>
-              本服 {serverStats.sessions} 路远控
+              {t("本服")} {serverStats.sessions} {t("路远控")}
             </span>
           )}
           {serverStats && (
             <span className="stat-chip server" title={serverHint}>
-              服务器 ↓{formatKbps(serverStats.bandwidthOutKbps)} ↑
+              {t("服务器 ↓")}{formatKbps(serverStats.bandwidthOutKbps)} ↑
               {formatKbps(serverStats.bandwidthInKbps)}
             </span>
           )}
           {connected && <span className="stat-chip timer">{formatDuration(elapsed)}</span>}
           {endsAt && (
-            <span className="stat-chip warn" title="服务器限制的单次远控时长，到时自动结束">
-              剩余 {formatDuration(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))}
+            <span className="stat-chip warn" title={t("服务器限制的单次远控时长，到时自动结束")}>
+              {t("剩余")} {formatDuration(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))}
             </span>
           )}
         </div>
 
         <div className="session-tools">
-          <div className="view-switch" role="group" aria-label="画面缩放">
+          <div className="view-switch" role="group" aria-label={t("画面缩放")}>
             {VIEW_MODES.map((mode) => (
               <button
                 key={mode.id}
@@ -450,7 +453,7 @@ export function SessionView({
             disabled={!channelReady}
             onChange={(event) => onChangeQuality(event.target.value as QualityPreset)}
             title={QUALITY_PROFILES[quality].hint}
-            aria-label="画质档位"
+            aria-label={t("画质档位")}
           >
             {QUALITY_ORDER.map((preset) => (
               <option key={preset} value={preset}>
@@ -464,7 +467,7 @@ export function SessionView({
             className={`icon-button on-dark${clipboardActive ? " is-active" : ""}`}
             onClick={onToggleClipboard}
             disabled={!channelReady || !clipboardAllowed}
-            aria-label="剪贴板同步"
+            aria-label={t("剪贴板同步")}
             aria-pressed={clipboardActive}
             title={clipboardTitle}
           >
@@ -476,9 +479,9 @@ export function SessionView({
               type="button"
               className={`icon-button on-dark${chatOpen ? " is-active" : ""}`}
               onClick={toggleChat}
-              aria-label="会话消息"
+              aria-label={t("会话消息")}
               aria-expanded={chatOpen}
-              title="会话消息"
+              title={t("会话消息")}
             >
               <ChatIcon size={16} />
             </button>
@@ -489,14 +492,14 @@ export function SessionView({
             type="button"
             className="icon-button on-dark"
             onClick={() => void toggleFullscreen()}
-            aria-label={fullscreen ? "退出全屏" : "全屏"}
-            title={fullscreen ? "退出全屏" : "全屏"}
+            aria-label={fullscreen ? t("退出全屏") : t("全屏")}
+            title={fullscreen ? t("退出全屏") : t("全屏")}
           >
             {fullscreen ? <ExitFullscreenIcon size={17} /> : <FullscreenIcon size={17} />}
           </button>
           <button type="button" className="button danger small" onClick={onDisconnect}>
             <PowerIcon size={15} />
-            结束控制
+            {t("结束控制")}
           </button>
         </div>
       </div>
@@ -533,14 +536,14 @@ export function SessionView({
         ) : (
           <div className="video-placeholder">
             <span className="spinner large" />
-            <span>正在建立端到端加密画面…</span>
+            <span>{t("正在建立端到端加密画面…")}</span>
           </div>
         )}
 
         {!channelReady && (
           <div className="video-overlay">
             <span className="spinner light" />
-            正在协商控制通道
+            {t("正在协商控制通道")}
           </div>
         )}
 
@@ -548,8 +551,8 @@ export function SessionView({
           <div className="input-paused-banner">
             <PauseIcon size={16} />
             <div>
-              <strong>对方已暂停输入</strong>
-              <span>画面仍然实时可见，键盘和鼠标暂不会发送。</span>
+              <strong>{t("对方已暂停输入")}</strong>
+              <span>{t("画面仍然实时可见，键盘和鼠标暂不会发送。")}</span>
             </div>
           </div>
         )}
@@ -558,15 +561,15 @@ export function SessionView({
           {inputPaused ? (
             <>
               <PauseIcon size={14} />
-              对方已暂停你的输入
+              {t("对方已暂停你的输入")}
             </>
           ) : (
             <>
               <MousePointerIcon size={14} />
-              点击画面后即可操作
+              {t("点击画面后即可操作")}
               <span className="hint-divider" />
               <KeyboardIcon size={14} />
-              键盘将发送到对方
+              {t("键盘将发送到对方")}
             </>
           )}
           <span className="hint-divider" />
@@ -576,24 +579,24 @@ export function SessionView({
         </div>
 
         {chatOpen && (
-          <section className="session-chat" aria-label="会话消息">
+          <section className="session-chat" aria-label={t("会话消息")}>
             <header className="session-chat-head">
               <div>
-                <strong>会话消息</strong>
-                <span>仅本次连接可见</span>
+                <strong>{t("会话消息")}</strong>
+                <span>{t("仅本次连接可见")}</span>
               </div>
               <button
                 type="button"
                 className="icon-button on-dark chat-close"
                 onClick={() => setChatOpen(false)}
-                aria-label="关闭会话消息"
+                aria-label={t("关闭会话消息")}
               >
                 <XIcon size={14} />
               </button>
             </header>
             <div className="session-chat-list" ref={chatListRef}>
               {chatMessages.length === 0 ? (
-                <p className="session-chat-empty">发消息给对方，内容不经过服务器。</p>
+                <p className="session-chat-empty">{t("发消息给对方，内容不经过服务器。")}</p>
               ) : (
                 chatMessages.map((message) => (
                   <div
@@ -618,14 +621,14 @@ export function SessionView({
                 value={chatDraft}
                 onChange={(event) => setChatDraft(event.target.value)}
                 maxLength={CHAT_TEXT_LIMIT}
-                placeholder="输入消息，Enter 发送"
-                aria-label="聊天消息"
+                placeholder={t("输入消息，Enter 发送")}
+                aria-label={t("聊天消息")}
               />
               <button
                 type="submit"
                 className="button primary small"
                 disabled={!chatDraft.trim()}
-                aria-label="发送消息"
+                aria-label={t("发送消息")}
               >
                 <SendIcon size={14} />
               </button>

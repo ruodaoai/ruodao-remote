@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 export interface IceServer {
   urls: string | string[];
   username?: string;
@@ -238,12 +239,12 @@ export function signalUrl(serverUrl: string): string {
   try {
     url = new URL(withScheme);
   } catch {
-    throw new Error("服务器地址格式不正确");
+    throw new Error(t("服务器地址格式不正确"));
   }
   if (url.protocol === "http:") url.protocol = "ws:";
   else if (url.protocol === "https:") url.protocol = "wss:";
   else if (url.protocol !== "ws:" && url.protocol !== "wss:") {
-    throw new Error("服务器地址协议不支持");
+    throw new Error(t("服务器地址协议不支持"));
   }
   const pathname = url.pathname.replace(/\/+$/, "");
   url.pathname = !pathname || pathname === "/ws" ? "/ws" : `${pathname}/ws`;
@@ -307,7 +308,7 @@ export class SignalingClient {
       try {
         ws = new WebSocket(this.url);
       } catch {
-        reject(new Error("无法连接远控服务器"));
+        reject(new Error(t("无法连接远控服务器")));
         return;
       }
       this.socket = ws;
@@ -319,7 +320,7 @@ export class SignalingClient {
         } catch {
           // ignore
         }
-        reject(new Error("连接服务器超时"));
+        reject(new Error(t("连接服务器超时")));
       }, timeoutMs);
 
       const fail = (message: string) => {
@@ -336,7 +337,7 @@ export class SignalingClient {
         this.opened = true;
         resolve();
       };
-      ws.onerror = () => fail("无法连接远控服务器");
+      ws.onerror = () => fail(t("无法连接远控服务器"));
       ws.onclose = (event) => {
         window.clearTimeout(timer);
         const wasOpen = this.opened;
@@ -344,18 +345,18 @@ export class SignalingClient {
         this.socket = null;
         if (!settled) {
           settled = true;
-          reject(new Error("无法连接远控服务器"));
+          reject(new Error(t("无法连接远控服务器")));
           return;
         }
         const waiter = this.authWaiter;
         if (waiter) {
           this.authWaiter = null;
           window.clearTimeout(waiter.timer);
-          waiter.reject(new ServerAccessError("network", "与服务器的连接已断开，请稍后重试。"));
+          waiter.reject(new ServerAccessError("network", t("与服务器的连接已断开，请稍后重试。")));
           return;
         }
         if (wasOpen && !this.disposed) {
-          this.handlers.onClose(event.reason || "连接已断开");
+          this.handlers.onClose(event.reason || t("连接已断开"));
         }
       };
       ws.onmessage = (event) => {
@@ -386,7 +387,7 @@ export class SignalingClient {
             waiter.reject(
               new ServerAccessError(
                 "invalid-hello",
-                "服务器版本过旧，请先升级服务端后再连接。",
+                t("服务器版本过旧，请先升级服务端后再连接。"),
               ),
             );
             return;
@@ -399,16 +400,16 @@ export class SignalingClient {
 
   authenticate(hello: ClientHelloInput, timeoutMs = 8000): Promise<WelcomeInfo> {
     if (!this.isOpen) {
-      return Promise.reject(new ServerAccessError("network", "无法连接远控服务器"));
+      return Promise.reject(new ServerAccessError("network", t("无法连接远控服务器")));
     }
     return new Promise((resolve, reject) => {
       if (this.authWaiter) {
-        reject(new ServerAccessError("network", "客户端接入正在进行中，请稍候。"));
+        reject(new ServerAccessError("network", t("客户端接入正在进行中，请稍候。")));
         return;
       }
       const timer = window.setTimeout(() => {
         this.authWaiter = null;
-        reject(new ServerAccessError("network", "客户端接入超时，请稍后再试。"));
+        reject(new ServerAccessError("network", t("客户端接入超时，请稍后再试。")));
       }, timeoutMs);
       this.authWaiter = { resolve, reject, timer };
       const sent = this.send({
@@ -422,7 +423,7 @@ export class SignalingClient {
       if (!sent) {
         this.authWaiter = null;
         window.clearTimeout(timer);
-        reject(new ServerAccessError("network", "无法连接远控服务器"));
+        reject(new ServerAccessError("network", t("无法连接远控服务器")));
       }
     });
   }
@@ -444,7 +445,7 @@ export class SignalingClient {
       const waiter = this.authWaiter;
       this.authWaiter = null;
       window.clearTimeout(waiter.timer);
-      waiter.reject(new ServerAccessError("network", "连接已取消"));
+      waiter.reject(new ServerAccessError("network", t("连接已取消")));
     }
     const ws = this.socket;
     this.socket = null;

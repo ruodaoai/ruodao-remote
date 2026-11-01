@@ -10,6 +10,8 @@
   Account-free remote control with a 9-digit code and 10-character key over encrypted WebRTC.
 - 本机被控、控制远程设备、服务端管理、共享服务器、社区留言五个主页面；
   Five tabs: host, controller, server, shared servers, community.
+- 中英文界面：设置内一键切换，首次启动跟随系统语言，覆盖全部页面、指南与错误提示；
+  Bilingual UI (Chinese / English) switchable in settings, following the system locale on first launch.
 - 会话文字聊天、剪贴板同步、画质档位、视图缩放、暂停输入；
   In-session chat, clipboard sync, quality presets, view zoom, pause input.
 - 共享设备与远控申请，被控端逐次批准；

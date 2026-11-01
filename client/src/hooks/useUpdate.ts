@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { UpdateStatus } from "../types";
 
+import { t } from "../i18n";
+
 type UpdateAction = "check" | "download" | "install" | "auto";
 
 function cleanError(error: unknown): string {
-  if (!(error instanceof Error)) return "更新失败，请稍后再试。";
+  if (!(error instanceof Error)) return t("更新失败，请稍后再试。");
   return error.message.replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, "");
 }
 
@@ -73,7 +75,7 @@ export function useUpdate() {
     try {
       const result = await window.remote.updateInstall();
       if (!result.ok) {
-        if (mounted.current) setActionError(result.error ?? "安装失败，请稍后重试。");
+        if (mounted.current) setActionError(result.error ?? t("安装失败，请稍后重试。"));
         return false;
       }
       return true;

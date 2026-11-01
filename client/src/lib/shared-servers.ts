@@ -1,11 +1,14 @@
 import type { SharedServerInfo } from "../types";
 
+import { t, tf } from "../i18n";
+
+
 export const MAX_EXPIRY_DAYS = 365;
 
 const ACCESS_MODES: Record<string, { label: string; hint: string }> = {
-  invite: { label: "邀请制", hint: "连接时需要填写发布者提供的邀请码" },
-  approval: { label: "审核制", hint: "接入后需要服务器管理员批准" },
-  open: { label: "开放接入", hint: "填好服务器地址即可直接接入" },
+  invite: { label: t("邀请制"), hint: t("连接时需要填写发布者提供的邀请码") },
+  approval: { label: t("审核制"), hint: t("接入后需要服务器管理员批准") },
+  open: { label: t("开放接入"), hint: t("填好服务器地址即可直接接入") },
 };
 
 export function todayInputValue(now = new Date()): string {
@@ -20,16 +23,16 @@ export function maxExpiryInputValue(now = new Date()): string {
 }
 
 export function accessModeInfo(mode: string): { label: string; hint: string } {
-  return ACCESS_MODES[mode] ?? { label: "接入方式未知", hint: "发布时没有返回接入方式" };
+  return ACCESS_MODES[mode] ?? { label: t("接入方式未知"), hint: t("发布时没有返回接入方式") };
 }
 
 export function serverHealth(server: SharedServerInfo): {
   tone: "idle" | "busy" | "online" | "error";
   label: string;
 } {
-  if (server.healthStatus === "offline") return { tone: "error", label: "离线" };
-  if (server.online) return { tone: "online", label: "在线" };
-  return { tone: "idle", label: "等待检查" };
+  if (server.healthStatus === "offline") return { tone: "error", label: t("离线") };
+  if (server.online) return { tone: "online", label: t("在线") };
+  return { tone: "idle", label: t("等待检查") };
 }
 
 export function parseServerDate(value: string | null | undefined): Date | null {
@@ -49,7 +52,7 @@ export function expiresInDays(expiresAt: string | null | undefined, now = new Da
 
 export function formatExpiryDate(expiresAt: string | null | undefined): string {
   const date = parseServerDate(expiresAt);
-  if (!date) return "未填写";
+  if (!date) return t("未填写");
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
     date.getDate(),
   ).padStart(2, "0")}`;
@@ -57,10 +60,10 @@ export function formatExpiryDate(expiresAt: string | null | undefined): string {
 
 export function expiryText(expiresAt: string | null | undefined): string {
   const days = expiresInDays(expiresAt);
-  if (days === null) return "未填写有效期";
-  if (days < 0) return "已过期";
-  if (days === 0) return "今天到期";
-  return `剩余 ${days} 天`;
+  if (days === null) return t("未填写有效期");
+  if (days < 0) return t("已过期");
+  if (days === 0) return t("今天到期");
+  return tf("剩余 {0} 天", days);
 }
 
 export function formatInviteCode(code: string): string {
@@ -73,12 +76,12 @@ export function serverStatusLabel(
   server: SharedServerInfo | null,
   gone: boolean,
 ): { tone: "idle" | "busy" | "online" | "error"; label: string } {
-  if (gone) return { tone: "idle", label: "已下架或过期" };
-  if (!server) return { tone: "idle", label: "状态未知" };
-  if (server.status === "hidden") return { tone: "error", label: "已隐藏" };
+  if (gone) return { tone: "idle", label: t("已下架或过期") };
+  if (!server) return { tone: "idle", label: t("状态未知") };
+  if (server.status === "hidden") return { tone: "error", label: t("已隐藏") };
   const days = expiresInDays(server.expiresAt);
-  if (days !== null && days < 0) return { tone: "idle", label: "已过期" };
-  if (server.healthStatus === "offline") return { tone: "error", label: "离线" };
-  if (server.online) return { tone: "online", label: "在线" };
-  return { tone: "idle", label: "等待检查" };
+  if (days !== null && days < 0) return { tone: "idle", label: t("已过期") };
+  if (server.healthStatus === "offline") return { tone: "error", label: t("离线") };
+  if (server.online) return { tone: "online", label: t("在线") };
+  return { tone: "idle", label: t("等待检查") };
 }

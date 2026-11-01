@@ -12,6 +12,8 @@ import {
 import { accessErrorMessage, connectionErrorMessage } from "../lib/messages";
 import type { AppInfo, Settings, ToastKind } from "../types";
 
+import { t, tf } from "../i18n";
+
 export type CatalogStatus = "idle" | "loading" | "ready" | "pending" | "error";
 
 export interface CatalogRequestState {
@@ -105,8 +107,8 @@ export function useCatalog(
       if (!engine.request) return;
       const name = engine.request.hostName;
       clearRequest();
-      setError(`向“${name}”发送的申请已超时，请重新申请。`);
-      notifyRef.current("远控申请已超时", "info");
+      setError(tf("向“{0}”发送的申请已超时，请重新申请。", name));
+      notifyRef.current(t("远控申请已超时"), "info");
     }, delay);
   }
 
@@ -141,8 +143,8 @@ export function useCatalog(
     setCatalogStatus("error");
     setError(
       hadRequest
-        ? "与服务器的连接已断开，申请已取消，请重新申请。"
-        : "与服务器的连接已断开，正在重试…",
+        ? t("与服务器的连接已断开，申请已取消，请重新申请。")
+        : t("与服务器的连接已断开，正在重试…"),
     );
     scheduleRetry(gen);
   }
@@ -172,7 +174,7 @@ export function useCatalog(
         clearRequest();
         if (!mountedRef.current) return;
         setError(null);
-        notifyRef.current(`“${message.host.name}”已同意远控申请`, "success");
+        notifyRef.current(tf("“{0}”已同意远控申请", message.host.name), "success");
         acceptedRef.current(message.host, message.token);
         break;
       }
@@ -257,7 +259,7 @@ export function useCatalog(
     setAccessIssue(null);
     if (welcome.device.status !== "approved") {
       setCatalogStatus("pending");
-      setError("此客户端正在等待管理员批准，批准后即可查看本服共享设备。");
+      setError(t("此客户端正在等待管理员批准，批准后即可查看本服共享设备。"));
       scheduleRetry(gen, 8000);
       return;
     }
@@ -278,12 +280,12 @@ export function useCatalog(
   function requestControl(host: CatalogHost): void {
     const engine = engineRef.current;
     if (engine.request) {
-      notifyRef.current("已有一条待处理的申请", "info");
+      notifyRef.current(t("已有一条待处理的申请"), "info");
       return;
     }
     const client = engine.client;
     if (!client?.isOpen || statusRef.current !== "ready") {
-      notifyRef.current("共享列表尚未就绪，请稍后再试", "info");
+      notifyRef.current(t("共享列表尚未就绪，请稍后再试"), "info");
       return;
     }
     const next: CatalogRequestState = {
@@ -297,7 +299,7 @@ export function useCatalog(
     setError(null);
     if (!client.send({ type: "controller.request", hostDeviceId: host.deviceId })) {
       clearRequest();
-      setError("无法发送远控申请，请检查服务器连接。");
+      setError(t("无法发送远控申请，请检查服务器连接。"));
     }
   }
 
@@ -307,7 +309,7 @@ export function useCatalog(
     engine.client?.send({ type: "controller.disconnect" });
     clearRequest();
     setError(null);
-    notifyRef.current("已取消远控申请", "info");
+    notifyRef.current(t("已取消远控申请"), "info");
   }
 
   function refresh(): void {

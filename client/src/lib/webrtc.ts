@@ -1,6 +1,9 @@
 import type { IceServer } from "./signaling";
 import type { QualityPreset, SessionStats } from "../types";
 
+import { t } from "../i18n";
+
+
 export interface SignalData {
   description?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
@@ -58,24 +61,24 @@ export const QUALITY_ORDER: QualityPreset[] = ["smooth", "balanced", "sharp"];
 export const QUALITY_PROFILES: Record<QualityPreset, QualityProfile> = {
   smooth: {
     id: "smooth",
-    label: "流畅",
-    hint: "优先流畅度，适合弱网或移动网络",
+    label: t("流畅"),
+    hint: t("优先流畅度，适合弱网或移动网络"),
     maxBitrate: 2_500_000,
     maxFramerate: 30,
     degradation: "balanced",
   },
   balanced: {
     id: "balanced",
-    label: "均衡",
-    hint: "画质与带宽自动平衡",
+    label: t("均衡"),
+    hint: t("画质与带宽自动平衡"),
     maxBitrate: 6_000_000,
     maxFramerate: 30,
     degradation: "balanced",
   },
   sharp: {
     id: "sharp",
-    label: "高清",
-    hint: "优先清晰度，需要较好的网络带宽",
+    label: t("高清"),
+    hint: t("优先清晰度，需要较好的网络带宽"),
     maxBitrate: 12_000_000,
     maxFramerate: 30,
     degradation: "maintain-resolution",
@@ -174,22 +177,22 @@ export interface NetworkVerdict {
 
 export function assessNetwork(stats: SessionStats | null): NetworkVerdict {
   if (!stats || (stats.rttMs === 0 && stats.lossPct === 0 && stats.fps === 0)) {
-    return { level: "unknown", label: "评估中", detail: "正在收集网络质量指标" };
+    return { level: "unknown", label: t("评估中"), detail: t("正在收集网络质量指标") };
   }
   const poorReasons: string[] = [];
   const fairReasons: string[] = [];
-  if (stats.rttMs >= 320) poorReasons.push("延迟很高");
-  else if (stats.rttMs >= 160) fairReasons.push("延迟偏高");
-  if (stats.lossPct >= 6) poorReasons.push("丢包严重");
-  else if (stats.lossPct >= 2) fairReasons.push("有丢包");
-  if (stats.jitterMs >= 90) poorReasons.push("抖动很大");
-  else if (stats.jitterMs >= 35) fairReasons.push("抖动偏大");
-  if (stats.fps > 0 && stats.fps < 10) fairReasons.push("帧率偏低");
+  if (stats.rttMs >= 320) poorReasons.push(t("延迟很高"));
+  else if (stats.rttMs >= 160) fairReasons.push(t("延迟偏高"));
+  if (stats.lossPct >= 6) poorReasons.push(t("丢包严重"));
+  else if (stats.lossPct >= 2) fairReasons.push(t("有丢包"));
+  if (stats.jitterMs >= 90) poorReasons.push(t("抖动很大"));
+  else if (stats.jitterMs >= 35) fairReasons.push(t("抖动偏大"));
+  if (stats.fps > 0 && stats.fps < 10) fairReasons.push(t("帧率偏低"));
   if (poorReasons.length > 0) {
-    return { level: "poor", label: "容易卡顿", detail: poorReasons.join("、") };
+    return { level: "poor", label: t("容易卡顿"), detail: poorReasons.join("、") };
   }
   if (fairReasons.length > 0) {
-    return { level: "fair", label: "轻微卡顿", detail: fairReasons.join("、") };
+    return { level: "fair", label: t("轻微卡顿"), detail: fairReasons.join("、") };
   }
-  return { level: "good", label: "流畅", detail: "延迟、抖动和丢包均在正常范围" };
+  return { level: "good", label: t("流畅"), detail: t("延迟、抖动和丢包均在正常范围") };
 }

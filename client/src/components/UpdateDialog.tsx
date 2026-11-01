@@ -3,6 +3,9 @@ import type { UpdatePhase, UpdateStatus } from "../types";
 import { CheckIcon, DownloadIcon, RefreshIcon, XIcon } from "./icons";
 import { InlineAlert, StatusPill } from "./ui";
 
+import { t } from "../i18n";
+
+
 interface UpdateDialogProps {
   open: boolean;
   status: UpdateStatus | null;
@@ -17,14 +20,14 @@ interface UpdateDialogProps {
 }
 
 const PHASE_LABELS: Record<UpdatePhase, string> = {
-  idle: "尚未检查",
-  checking: "正在检查",
-  "up-to-date": "已是最新版本",
-  available: "发现新版本",
-  downloading: "正在下载",
-  ready: "等待安装",
-  installing: "正在安装",
-  error: "检查失败",
+  idle: t("尚未检查"),
+  checking: t("正在检查"),
+  "up-to-date": t("已是最新版本"),
+  available: t("发现新版本"),
+  downloading: t("正在下载"),
+  ready: t("等待安装"),
+  installing: t("正在安装"),
+  error: t("检查失败"),
 };
 
 function phaseTone(phase: UpdatePhase): "idle" | "busy" | "online" | "error" {
@@ -35,7 +38,7 @@ function phaseTone(phase: UpdatePhase): "idle" | "busy" | "online" | "error" {
 }
 
 function formatBytes(value: number | null): string {
-  if (!value || value <= 0) return "大小未知";
+  if (!value || value <= 0) return t("大小未知");
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
@@ -97,10 +100,10 @@ export function UpdateDialog({
       <div className="settings-card">
         <div className="settings-head">
           <div>
-            <span className="eyebrow">版本与更新</span>
-            <h2>软件更新</h2>
+            <span className="eyebrow">{t("版本与更新")}</span>
+            <h2>{t("软件更新")}</h2>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="关闭更新窗口">
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t("关闭更新窗口")}>
             <XIcon size={18} />
           </button>
         </div>
@@ -108,11 +111,11 @@ export function UpdateDialog({
         <div className="settings-body">
           <div className="update-hero">
             <div className="update-hero-main">
-              <span className="update-current">当前版本 v{status?.currentVersion ?? "0.1.0"}</span>
+              <span className="update-current">{t("当前版本 v")}{status?.currentVersion ?? "0.1.0"}</span>
               <StatusPill tone={phaseTone(phase)} label={PHASE_LABELS[phase]} />
             </div>
             <p className="field-help">
-              更新源 {status?.updateBaseUrl || "https://ruodao.com"}，安装包下载后会在本机校验 SHA-256。
+              {t("更新源")} {status?.updateBaseUrl || "https://ruodao.com"}{t("，安装包下载后会在本机校验 SHA-256。")}
             </p>
           </div>
 
@@ -125,11 +128,11 @@ export function UpdateDialog({
                 <span>{formatBytes(release.size)}</span>
               </div>
               {release.publishedAt && (
-                <p className="update-release-date">发布于 {formatDate(release.publishedAt)}</p>
+                <p className="update-release-date">{t("发布于")} {formatDate(release.publishedAt)}</p>
               )}
               {release.notes && <div className="update-notes">{release.notes}</div>}
               {release.mandatory && (
-                <p className="update-mandatory">这是一个必须安装的版本，修复了重要问题。</p>
+                <p className="update-mandatory">{t("这是一个必须安装的版本，修复了重要问题。")}</p>
               )}
             </div>
           )}
@@ -137,7 +140,7 @@ export function UpdateDialog({
           {downloading && (
             <div className="update-progress">
               <div className="update-progress-head">
-                <span>正在下载安装包</span>
+                <span>{t("正在下载安装包")}</span>
                 <span>
                   {progress?.percent ?? 0}%
                   {progress && progress.total > 0
@@ -160,8 +163,8 @@ export function UpdateDialog({
           {phase === "ready" && (
             <InlineAlert kind="info">
               {status?.portable
-                ? "便携版已下载完成。请打开所在文件夹，退出应用后手动替换为新版本。"
-                : "安装包已校验完成。点击「重启并安装」会关闭当前窗口并静默安装，远控会话会中断。"}
+                ? t("便携版已下载完成。请打开所在文件夹，退出应用后手动替换为新版本。")
+                : t("安装包已校验完成。点击「重启并安装」会关闭当前窗口并静默安装，远控会话会中断。")}
             </InlineAlert>
           )}
 
@@ -170,16 +173,16 @@ export function UpdateDialog({
 
           <div className="setting-row update-auto-row">
             <div>
-              <strong>自动检查并下载更新</strong>
+              <strong>{t("自动检查并下载更新")}</strong>
               <p>
-                启动后自动向若道更新源查询新版本，并在后台下载；退出应用时自动安装。关闭后仍可手动检查。
+                {t("启动后自动向若道更新源查询新版本，并在后台下载；退出应用时自动安装。关闭后仍可手动检查。")}
               </p>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={status?.autoUpdate ?? true}
-              aria-label="自动检查并下载更新"
+              aria-label={t("自动检查并下载更新")}
               className={`switch${status?.autoUpdate ? " on" : ""}`}
               disabled={busy === "auto" || !supported}
               onClick={() => onToggleAuto(!(status?.autoUpdate ?? true))}
@@ -190,23 +193,23 @@ export function UpdateDialog({
 
           {status?.lastCheckedAt && (
             <p className="update-footnote">
-              上次检查：{new Date(status.lastCheckedAt).toLocaleString("zh-CN", { hour12: false })}
+              {t("上次检查：")}{new Date(status.lastCheckedAt).toLocaleString("zh-CN", { hour12: false })}
             </p>
           )}
         </div>
 
         <div className="settings-foot">
           <span className="version-text">
-            若道远程 v{status?.currentVersion ?? "0.1.0"} · {status?.portable ? "便携版" : "安装版"}
+            {t("若道远程 v")}{status?.currentVersion ?? "0.1.0"} · {status?.portable ? t("便携版") : t("安装版")}
           </span>
           <div className="settings-actions">
             <button type="button" className="button ghost" onClick={onClose}>
-              关闭
+              {t("关闭")}
             </button>
             {phase === "ready" ? (
               <>
                 <button type="button" className="button ghost" onClick={onOpenFolder}>
-                  打开所在文件夹
+                  {t("打开所在文件夹")}
                 </button>
                 <button
                   type="button"
@@ -215,18 +218,18 @@ export function UpdateDialog({
                   onClick={onInstall}
                 >
                   {busy === "install" ? <span className="spinner" /> : <CheckIcon size={16} />}
-                  重启并安装
+                  {t("重启并安装")}
                 </button>
               </>
             ) : phase === "available" ? (
               <button type="button" className="button primary" disabled={busy === "download"} onClick={onDownload}>
                 {busy === "download" ? <span className="spinner" /> : <DownloadIcon size={16} />}
-                下载更新
+                {t("下载更新")}
               </button>
             ) : downloading ? (
               <button type="button" className="button primary" disabled>
                 <span className="spinner" />
-                下载中 {progress?.percent ?? 0}%
+                {t("下载中")} {progress?.percent ?? 0}%
               </button>
             ) : (
               <button
@@ -236,7 +239,7 @@ export function UpdateDialog({
                 onClick={onCheck}
               >
                 {checking ? <span className="spinner" /> : <RefreshIcon size={16} />}
-                {phase === "error" ? "重新检查" : phase === "up-to-date" ? "再次检查" : "检查更新"}
+                {phase === "error" ? t("重新检查") : phase === "up-to-date" ? t("再次检查") : t("检查更新")}
               </button>
             )}
           </div>

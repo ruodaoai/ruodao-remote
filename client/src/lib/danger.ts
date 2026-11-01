@@ -1,12 +1,13 @@
+import { t } from "../i18n";
 export const DANGER_ACTION_LABELS: Record<string, string> = {
-  "ctrl-alt-del": "Ctrl+Alt+Delete 安全界面",
-  "ctrl-shift-esc": "任务管理器",
-  "alt-f4": "关闭前台窗口",
-  "win-l": "锁定对方屏幕",
-  "win-r": "运行命令框",
-  "win-x": "系统快捷菜单",
-  "win-u": "辅助功能中心",
-  power: "电源相关操作",
+  "ctrl-alt-del": t("Ctrl+Alt+Delete 安全界面"),
+  "ctrl-shift-esc": t("任务管理器"),
+  "alt-f4": t("关闭前台窗口"),
+  "win-l": t("锁定对方屏幕"),
+  "win-r": t("运行命令框"),
+  "win-x": t("系统快捷菜单"),
+  "win-u": t("辅助功能中心"),
+  power: t("电源相关操作"),
 };
 
 export function dangerActionLabel(action: string): string {

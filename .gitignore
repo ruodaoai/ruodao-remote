@@ -40,3 +40,7 @@ packaging/server/stage/
 # 临时发布脚本
 .publish.mjs
 .publish-message.txt
+
+# i18n 审计产物
+.i18n-keys.json
+.i18n-leftovers.json

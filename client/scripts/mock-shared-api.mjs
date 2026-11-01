@@ -169,8 +169,27 @@ function sortServers(items, sort) {
   return copy;
 }
 
-export function startMockApi({ port = 0 } = {}) {
+/** 英文界面截图使用的展示数据，顺序与 seedServers 一致。 */
+const EN_SERVERS = [
+  { name: "East China · Shanghai community", region: "Shanghai", specs: "2 vCPU 4 GB · 5 Mbps", note: "Community server — no mining or long unattended sessions." },
+  { name: "South China · Guangzhou Mobile", region: "Guangzhou", specs: "4 vCPU 8 GB · 10 Mbps", note: "Busy at peak hours; daytime works better." },
+  { name: "North China · Beijing Unicom", region: "Beijing", specs: "2 vCPU 2 GB · 3 Mbps", note: "Open access, no invite code required." },
+  { name: "Overseas · Tokyo relay", region: "Japan", specs: "2 vCPU 4 GB · 30 Mbps", note: "For pairing overseas devices, around 90 ms latency." },
+  { name: "Southwest · Chengdu Telecom", region: "Chengdu", specs: "1 vCPU 2 GB · 4 Mbps", note: "Home broadband line, best in the evening." },
+  { name: "Central China · Wuhan campus", region: "Wuhan", specs: "2 vCPU 4 GB · 6 Mbps", note: "Campus network — most reliable during holidays." },
+  { name: "Northwest · Xi'an BGP", region: "Xi'an", specs: "2 vCPU 2 GB · 5 Mbps", note: "Mixed BGP line for the northwest region." },
+  { name: "Northeast · Shenyang Unicom", region: "Shenyang", specs: "2 vCPU 4 GB · 8 Mbps", note: "Frequent nightly maintenance; steadier by day." },
+  { name: "South China · Shenzhen protected", region: "Shenzhen", specs: "4 vCPU 8 GB · 20 Mbps", note: "100 Gbps DDoS protection, good for always-on hosts." },
+];
+
+export function startMockApi({ port = 0, lang = "zh" } = {}) {
   const servers = seedServers();
+  if (lang === "en") {
+    servers.forEach((server, index) => {
+      const english = EN_SERVERS[index];
+      if (english) Object.assign(server, english);
+    });
+  }
   const manageTokens = new Map();
   const sessions = new Map();
 
