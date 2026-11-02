@@ -1,4 +1,4 @@
-name: Release
+name: Release macOS
 
 on:
   workflow_dispatch:
@@ -7,42 +7,11 @@ on:
         description: "Release tag, e.g. v0.2.0"
         required: true
         type: string
-      notes:
-        description: "Release notes (markdown, optional)"
-        required: false
-        type: string
 
 permissions:
   contents: write
 
 jobs:
-  windows:
-    name: Windows installer
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: client
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: client/package-lock.json
-      - run: npm ci
-      - run: npm test
-      - run: npm run dist:win
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.tag }}
-          name: 若道远程 ${{ inputs.tag }}
-          body: ${{ inputs.notes }}
-          files: |
-            client/release/*.exe
-          fail_on_unmatched_files: false
-
   macos:
     name: macOS (${{ matrix.arch }})
     strategy:
@@ -69,11 +38,11 @@ jobs:
       - run: npm run dist:mac -- --${{ matrix.arch }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
           name: 若道远程 ${{ inputs.tag }}
-          body: ${{ inputs.notes }}
           files: |
             client/release/*.dmg
             client/release/*.zip
