@@ -541,55 +541,66 @@ export interface SharedServerMineState {
   refreshedAt: number | null;
 }
 
-export type CommunitySource = "plugin-market" | "ecosystem";
-
-export interface CommunityApp {
+/** 若道开源产品（ruodao.com/open-source）的公开信息，含互动数据。 */
+export interface OpenSourceProduct {
   id: string;
   slug: string;
-  name: string;
+  title: string;
   summary: string;
-  iconUrl: string;
-  pagePath: string;
-  source: CommunitySource;
-  authorUserId: string;
-  submittedByMe: boolean;
+  tags: string[];
+  category: string;
+  version: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string;
+  licenseName: string;
+  repositoryUrl: string;
+  communityUrl: string;
+  communityApiUrl: string;
+  integrationDocUrl: string;
+  downloadUrl: string;
+  changelog: string;
+  commentCount: number;
+  likeCount: number;
+  official: boolean;
+  featured: boolean;
+  publishedAt: string;
+  updatedAt: string;
 }
 
-export interface CommunityReply {
-  content: string;
-  createdAt: string;
+/** 若道统一身份：`userId` 即 OIDC 的 `sub`。 */
+export interface OpenSourceIdentity {
+  userId: string;
+  displayName: string;
+  avatarUrl: string;
+  maskedEmail: string;
 }
 
-export interface CommunityReview {
+export interface OpenSourceComment {
   id: string;
-  rating: number;
-  content: string;
-  userLabel: string;
-  userAvatarUrl: string;
-  verified: boolean;
+  authorName: string;
+  authorAvatarUrl: string;
+  /** 服务端已消毒的 HTML；渲染层会再按白名单转换成纯文本节点。 */
+  body: string;
+  owner: boolean;
+  replyToName: string;
+  replyCount: number;
   createdAt: string;
-  helpful: boolean;
-  helpfulCount: number;
-  authorReply: CommunityReply | null;
-  mine: boolean;
+  replies: OpenSourceComment[];
 }
 
-export interface CommunitySummary {
-  ratingAvg: number;
-  ratingCount: number;
-  distribution: number[];
-  tipCount: number;
-  tipTotal: number;
-}
-
-export interface CommunityThread {
-  app: CommunityApp;
-  summary: CommunitySummary;
-  items: CommunityReview[];
-  myReview: CommunityReview | null;
+export interface OpenSourceThread {
+  product: OpenSourceProduct;
+  identity: OpenSourceIdentity | null;
+  signedIn: boolean;
+  items: OpenSourceComment[];
   total: number;
   page: number;
   size: number;
-  signedIn: boolean;
-  isOwner: boolean;
 }
+
+export type OpenSourceOpenTarget =
+  | "community"
+  | "repository"
+  | "download"
+  | "docs"
+  | "catalog";

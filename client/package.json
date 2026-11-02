@@ -1,7 +1,7 @@
 {
   "name": "ruodao-remote",
   "productName": "若道远程",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "若道远程 · 只需远控码和密钥的桌面远程控制客户端",
   "author": "Ruodao",
@@ -18,7 +18,8 @@
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
     "dist:win": "npm run build && electron-builder --win",
-    "icon": "electron scripts/make-icon.cjs"
+    "icon": "electron scripts/make-icon.cjs",
+    "dist:mac": "npm run build && electron-builder --mac"
   },
   "dependencies": {
     "koffi": "^3.3.0",
@@ -97,6 +98,18 @@
     },
     "portable": {
       "artifactName": "RuodaoRemote-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "RuodaoRemote-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "RuodaoRemote-${version}-${arch}.${ext}"
     }
   }
 }

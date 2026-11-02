@@ -49,7 +49,7 @@ import {
   startDeploy,
 } from "./deploy";
 import { registerAssistantIpc } from "./assistant";
-import { registerCommunityIpc } from "./community";
+import { registerOpenSourceIpc } from "./open-source";
 import { registerSharedServersIpc } from "./shared-servers";
 import { initializeUpdater, installOnQuit, shutdownUpdater } from "./updater";
 import { appendSessionLog, listSessionLogs, openSessionLogFolder } from "./session-log";
@@ -187,7 +187,7 @@ ipcMain.handle("display:primary", () => {
 });
 
 registerAssistantIpc();
-registerCommunityIpc();
+registerOpenSourceIpc();
 registerSharedServersIpc();
 
 ipcMain.handle("session-log:append", (_event, value: unknown) => appendSessionLog(value));

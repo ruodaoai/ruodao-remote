@@ -1,5 +1,22 @@
 # 更新日志 / Changelog
 
+## 0.2.0 — 2026-11-02
+
+### 客户端 / Client
+
+- 新增 macOS 版（x64 / arm64，DMG + ZIP）：可作为主控端连接其他设备；被控端的键鼠注入仍仅支持 Windows；
+  Added macOS builds (x64 / arm64, DMG + ZIP): usable as a controller; host-side input injection still requires Windows.
+- 「社区留言」升级为「若道社区」：按《开源产品接入若道社区标准》v1.0 对接 `/api/public/apps`，评论与 `ruodao.com/open-source/ruodao-remote` 共用同一份数据；
+  The *Community* tab now follows Ruodao's open-source integration standard (`/api/public/apps`) and shares one comment stream with the site.
+- 新增产品互动信息：评论数、点赞数、当前版本、最近更新时间，全部来自服务端公开接口；
+  New interaction numbers for the product — comments, likes, current version and last update — all read from the public API.
+- 评论支持回复、删除自己的评论、分页加载与「我」标记；
+  Comments support replies, deleting your own entries, pagination and an owner badge.
+- 评论正文按白名单渲染，外链统一交给系统浏览器，只放行 `http/https`；
+  Comment bodies render through a tag whitelist; links open in the system browser and only `http/https` is allowed.
+- 环境变量 `RUODAO_OPEN_SOURCE_SLUG` 可覆盖产品 slug，slug 变更时自动在开源产品目录检索；
+  `RUODAO_OPEN_SOURCE_SLUG` overrides the product slug, with catalog discovery as a fallback.
+
 ## 0.1.0 — 2026-11-01
 
 首个公开版本。/ First public release.

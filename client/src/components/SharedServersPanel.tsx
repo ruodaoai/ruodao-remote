@@ -146,7 +146,7 @@ function SharedLoginCard({
           </span>
           <h3>{t("登录后查看共享服务器详情")}</h3>
           <p>
-            {t("列表不用登录也能浏览；登录后可以查看完整地址、邀请码与配置说明，并发布自己的服务器。社区留言与共享服务器共用一个若道账号。")}
+            {t("列表不用登录也能浏览；登录后可以查看完整地址、邀请码与配置说明，并发布自己的服务器。若道社区评论与共享服务器共用一个若道账号。")}
           </p>
         </div>
       </div>
@@ -1104,7 +1104,7 @@ export function SharedServersPanel({
         </div>
         <div className="panel-heading-actions">
           {signedIn && (
-            <span className="shared-account-chip" title={t("社区留言与共享服务器共用此若道账号")}>
+            <span className="shared-account-chip" title={t("若道社区与共享服务器共用此若道账号")}>
               <UserIcon size={14} />
               <span>{accountLabel}</span>
             </span>
@@ -1182,7 +1182,7 @@ export function SharedServersPanel({
               expired={expired}
               focusSignal={loginFocus}
               onLoggedIn={() => {
-                notify(t("已登录若道账号，共享服务器与社区留言已同步登录"), "success");
+                notify(t("已登录若道账号，共享服务器与若道社区已同步登录"), "success");
               }}
             />
           ) : (
@@ -1232,7 +1232,7 @@ export function SharedServersPanel({
             <div className="shared-server-note">
               <ShieldIcon size={16} />
               <span>
-                {t("共享服务器由社区成员提供。若道只校验 /health 是否可达，不参与实际远控连接，也不保存远控码与访问密钥。列表公开浏览，完整详情与接入需登录若道账号；登录与社区留言通用。")}
+                {t("共享服务器由社区成员提供。若道只校验 /health 是否可达，不参与实际远控连接，也不保存远控码与访问密钥。列表公开浏览，完整详情与接入需登录若道账号；登录与若道社区通用。")}
               </span>
             </div>
 

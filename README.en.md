@@ -6,10 +6,11 @@
 
 [![Release](https://img.shields.io/github/v/release/ruodaoai/ruodao-remote?label=release)](https://github.com/ruodaoai/ruodao-remote/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078d4.svg)](#requirements-and-known-limitations)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20%C2%B7%20macOS%20x64%2Farm64-0078d4.svg)](#requirements-and-known-limitations)
 [![CI](https://github.com/ruodaoai/ruodao-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/ruodaoai/ruodao-remote/actions/workflows/ci.yml)
 
 [**Download for Windows**](https://github.com/ruodaoai/ruodao-remote/releases/latest) ·
+[**Download for macOS**](https://github.com/ruodaoai/ruodao-remote/releases/latest) ·
 [Server bundle](https://github.com/ruodaoai/ruodao-remote/releases/latest/download/ruodao-remote-server.zip) ·
 [Quick start](docs/en/quick-start.md) ·
 [Server deployment](docs/en/server-deployment.md) ·
@@ -30,7 +31,7 @@
 | **Shared server directory** | The *Shared servers* tab lists community-published signaling servers, sorted by availability, latency and expiry; one click writes the address and invite code into your local settings. You can also publish your own server, update it, take it down or report a broken one. |
 | **English and Chinese UI** | The interface ships in Simplified Chinese and English, switchable under *Settings → Language*; the first launch follows the system locale. Labels, the built-in guide, errors and notices are translated together. |
 | **Help when things break** | Scenario-based guide, diagnostics driven by the current state, and an optional AI assistant (after signing in with a Ruodao account, screenshots supported). |
-| **Community feedback** | The built-in *Community* tab mirrors ratings and comments from the Ruodao plugin market. It shares the same Ruodao account session as the shared server directory. |
+| **Ruodao community** | The built-in *Community* tab follows Ruodao's open-source integration standard: product interaction numbers (comments, likes, version, last update) plus the comment stream, in sync with ruodao.com/open-source/ruodao-remote. A comment posted here is the same record shown on the site, and the session is shared with the shared server directory. |
 | **Maintained over time** | Both the client and the Linux server check the Ruodao release API; every package is verified with SHA-256. The client downloads automatically and installs on exit; the deployed server uses a systemd timer that updates while idle and rolls back on failure. |
 
 ## Screenshots
@@ -54,6 +55,8 @@
 ### 1. Download and install
 
 Grab `RuodaoRemote-Setup-<version>.exe` from [Releases](https://github.com/ruodaoai/ruodao-remote/releases/latest) and run it. The installer is not code-signed yet, so Windows SmartScreen shows "Unknown publisher" — choose *More info → Run anyway*. Some antivirus products may flag it heuristically; add an exclusion or use the installer build only.
+
+On macOS grab `RuodaoRemote-<version>-arm64.dmg` (Apple Silicon) or `-x64.dmg` (Intel), open it and drag the app into *Applications*. The DMG is unsigned, so the first launch needs a right-click → *Open*.
 
 ### 2. Host: start a session
 
@@ -123,7 +126,8 @@ Full boundaries and limitations: [Technical reference](docs/en/technical-referen
 
 ## Requirements and known limitations
 
-- Client: Windows 10 / 11 x64. Input injection uses Win32 `SendInput`, so the host must be Windows.
+- Client: Windows 10 / 11 x64, or macOS 12+ (Intel / Apple Silicon). The macOS build currently works as a controller only.
+- Input injection uses Win32 `SendInput`, so the host must be Windows.
 - Server: Linux with systemd (Ubuntu 22.04+ / Debian 12+ preferred), or the built-in Windows server for LAN use.
 - Only the primary display is captured; no multi-monitor switching, `Ctrl+Alt+Del`, UAC secure desktop or lock screen.
 - Clipboard sync is plain text only (64 KB per item), off by default, and must be enabled on both sides.

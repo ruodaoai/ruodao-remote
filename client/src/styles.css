@@ -8876,9 +8876,168 @@ p {
   color: rgba(244, 81, 44, 0.75);
 }
 
+/* ---------- 若道开源社区：互动信息与评论 ---------- */
+
+.community-summary.community-summary-stats {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.community-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.community-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #f5e7e0;
+  background: #fff;
+}
+
+.community-stat svg {
+  color: rgba(244, 81, 44, 0.78);
+}
+
+.community-stat strong {
+  font-size: 17px;
+  white-space: nowrap;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.community-stat span {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.community-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.community-meta-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+}
+
+.community-meta-list dt {
+  color: var(--muted);
+}
+
+.community-meta-list dd {
+  margin: 0;
+  color: var(--ink-2);
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.community-comment-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+  margin-left: auto;
+}
+
+.community-comment-actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.community-comment-actions .text-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.community-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.community-review.reply {
+  border-style: dashed;
+  background: #fcfcfd;
+}
+
+.community-reply-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fafbfc;
+}
+
+.community-reply-form textarea {
+  width: 100%;
+  min-height: 62px;
+  resize: vertical;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.community-reply-form textarea:focus {
+  outline: none;
+  border-color: #f0cfc2;
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.community-reply-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.community-inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary-dark);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.community-composer-head .community-char-count {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
 @media (max-width: 1080px) {
   .community-summary {
     grid-template-columns: 142px minmax(0, 1fr);
+  }
+
+  .community-summary.community-summary-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .community-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .community-summary-note {

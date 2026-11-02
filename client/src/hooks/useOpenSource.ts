@@ -1,37 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CommunityReview, CommunityThread } from "../types";
+import type { OpenSourceOpenTarget, OpenSourceThread } from "../types";
 
 import { t } from "../i18n";
 
-export interface CommunityController {
-  thread: CommunityThread | null;
+export interface OpenSourceController {
+  thread: OpenSourceThread | null;
   loading: boolean;
   refreshing: boolean;
   loadingMore: boolean;
   submitting: boolean;
   deletingId: string | null;
-  helpfulId: string | null;
   error: string | null;
   notice: string | null;
   ensureLoaded: () => Promise<void>;
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
-  submit: (rating: number, content: string) => Promise<boolean>;
-  remove: (reviewId: string) => Promise<boolean>;
-  markHelpful: (review: CommunityReview) => Promise<void>;
-  openApp: () => Promise<void>;
-  openMarket: () => Promise<void>;
-  clearNotice: () => void;
+  submit: (body: string, parentCommentId?: string) => Promise<boolean>;
+  remove: (commentId: string) => Promise<boolean>;
+  open: (target: OpenSourceOpenTarget) => Promise<void>;
+  openUrl: (url: string) => Promise<void>;
 }
 
-function cleanCommunityError(error: unknown): string {
-  if (!(error instanceof Error)) return t("社区留言暂时不可用，请稍后再试。");
+function cleanError(error: unknown): string {
+  if (!(error instanceof Error)) return t("若道社区暂时不可用，请稍后再试。");
   return error.message
     .replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, "")
     .trim();
 }
 
-function mergeThread(current: CommunityThread, next: CommunityThread): CommunityThread {
+function mergeThread(current: OpenSourceThread, next: OpenSourceThread): OpenSourceThread {
   const seen = new Set(current.items.map((item) => item.id));
   return {
     ...next,
@@ -46,14 +43,13 @@ function mergeThread(current: CommunityThread, next: CommunityThread): Community
   };
 }
 
-export function useCommunity(): CommunityController {
-  const [thread, setThread] = useState<CommunityThread | null>(null);
+export function useOpenSource(): OpenSourceController {
+  const [thread, setThread] = useState<OpenSourceThread | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [helpfulId, setHelpfulId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const loadedRef = useRef(false);
@@ -61,7 +57,7 @@ export function useCommunity(): CommunityController {
 
   useEffect(() => {
     if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), 3400);
+    const timer = window.setTimeout(() => setNotice(null), 3600);
     return () => window.clearTimeout(timer);
   }, [notice]);
 
@@ -70,11 +66,11 @@ export function useCommunity(): CommunityController {
     else setRefreshing(true);
     setError(null);
     try {
-      const next = await window.remote.communityThread({ page: 1 });
+      const next = await window.remote.openSourceThread({ page: 1 });
       setThread(next);
       loadedRef.current = true;
     } catch (err) {
-      setError(cleanCommunityError(err));
+      setError(cleanError(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,51 +98,53 @@ export function useCommunity(): CommunityController {
     setLoadingMore(true);
     setError(null);
     try {
-      const next = await window.remote.communityThread({ page: thread.page + 1 });
+      const next = await window.remote.openSourceThread({ page: thread.page + 1 });
       setThread((current) => (current ? mergeThread(current, next) : next));
     } catch (err) {
-      setError(cleanCommunityError(err));
+      setError(cleanError(err));
     } finally {
       setLoadingMore(false);
     }
   }, [thread, loadingMore, refreshing]);
 
   const submit = useCallback(
-    async (rating: number, content: string) => {
+    async (body: string, parentCommentId?: string) => {
       if (submitting) return false;
-      const wasUpdate = Boolean(thread?.myReview);
       setSubmitting(true);
       setError(null);
       setNotice(null);
       try {
-        const next = await window.remote.communitySubmit({ rating, content });
+        const next = await window.remote.openSourceSubmit({
+          body,
+          ...(parentCommentId ? { parentCommentId } : {}),
+        });
         setThread(next);
         loadedRef.current = true;
-        setNotice(wasUpdate ? t("留言已更新。") : t("留言已发布，感谢你的反馈。"));
+        setNotice(parentCommentId ? t("回复已发布到若道。") : t("评论已发布，若道社区页同步显示。"));
         return true;
       } catch (err) {
-        setError(cleanCommunityError(err));
+        setError(cleanError(err));
         return false;
       } finally {
         setSubmitting(false);
       }
     },
-    [submitting, thread?.myReview],
+    [submitting],
   );
 
   const remove = useCallback(
-    async (reviewId: string) => {
+    async (commentId: string) => {
       if (deletingId) return false;
-      setDeletingId(reviewId);
+      setDeletingId(commentId);
       setError(null);
       setNotice(null);
       try {
-        const next = await window.remote.communityDelete({ reviewId });
+        const next = await window.remote.openSourceDelete({ commentId });
         setThread(next);
-        setNotice(t("留言已删除。"));
+        setNotice(t("评论已删除。"));
         return true;
       } catch (err) {
-        setError(cleanCommunityError(err));
+        setError(cleanError(err));
         return false;
       } finally {
         setDeletingId(null);
@@ -155,51 +153,19 @@ export function useCommunity(): CommunityController {
     [deletingId],
   );
 
-  const markHelpful = useCallback(
-    async (review: CommunityReview) => {
-      if (helpfulId) return;
-      setHelpfulId(review.id);
-      setError(null);
-      try {
-        const result = await window.remote.communityHelpful({ reviewId: review.id });
-        setThread((current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            items: current.items.map((item) => {
-              if (item.id !== review.id) return item;
-              if (result.review) return { ...item, ...result.review };
-              const helpful = !item.helpful;
-              return {
-                ...item,
-                helpful,
-                helpfulCount: Math.max(0, item.helpfulCount + (helpful ? 1 : -1)),
-              };
-            }),
-          };
-        });
-      } catch (err) {
-        setError(cleanCommunityError(err));
-      } finally {
-        setHelpfulId(null);
-      }
-    },
-    [helpfulId],
-  );
-
-  const openApp = useCallback(async () => {
+  const open = useCallback(async (target: OpenSourceOpenTarget) => {
     try {
-      await window.remote.communityOpenApp();
+      await window.remote.openSourceOpen({ target });
     } catch (err) {
-      setError(cleanCommunityError(err));
+      setError(cleanError(err));
     }
   }, []);
 
-  const openMarket = useCallback(async () => {
+  const openUrl = useCallback(async (url: string) => {
     try {
-      await window.remote.communityOpenMarket();
+      await window.remote.openSourceOpen({ url });
     } catch (err) {
-      setError(cleanCommunityError(err));
+      setError(cleanError(err));
     }
   }, []);
 
@@ -210,7 +176,6 @@ export function useCommunity(): CommunityController {
     loadingMore,
     submitting,
     deletingId,
-    helpfulId,
     error,
     notice,
     ensureLoaded,
@@ -218,9 +183,7 @@ export function useCommunity(): CommunityController {
     loadMore,
     submit,
     remove,
-    markHelpful,
-    openApp,
-    openMarket,
-    clearNotice: () => setNotice(null),
+    open,
+    openUrl,
   };
 }

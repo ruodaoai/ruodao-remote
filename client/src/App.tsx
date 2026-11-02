@@ -24,7 +24,7 @@ import {
 } from "./components/icons";
 import { useAssistant } from "./hooks/useAssistant";
 import { useCatalog } from "./hooks/useCatalog";
-import { useCommunity } from "./hooks/useCommunity";
+import { useOpenSource } from "./hooks/useOpenSource";
 import { useController } from "./hooks/useController";
 import { useDeploy } from "./hooks/useDeploy";
 import { useHost } from "./hooks/useHost";
@@ -94,7 +94,7 @@ export default function App() {
   const onboardingChecked = useRef(false);
   const updateNotified = useRef("");
   const assistant = useAssistant();
-  const community = useCommunity();
+  const openSource = useOpenSource();
   const update = useUpdate();
 
   const dismissToast = useCallback((id: number) => {
@@ -406,7 +406,7 @@ export default function App() {
             onClick={() => setTab("community")}
           >
             <ChatIcon size={16} />
-            {t("社区留言")}
+            {t("若道社区")}
           </button>
         </nav>
 
@@ -574,7 +574,7 @@ export default function App() {
             notify={notify}
           />
         ) : (
-          <CommunityPanel assistant={assistant} community={community} />
+          <CommunityPanel assistant={assistant} openSource={openSource} />
         )}
       </main>
 

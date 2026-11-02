@@ -7,8 +7,8 @@ import type {
   AssistantChatTurn,
   AssistantReply,
   AssistantStatus,
-  CommunityReview,
-  CommunityThread,
+  OpenSourceOpenTarget,
+  OpenSourceThread,
   DeployConfig,
   DeployEvent,
   LocalServerStatus,
@@ -79,17 +79,16 @@ declare global {
         images?: string[];
       }): Promise<AssistantReply>;
       assistantOpenAccount(path: "login" | "register" | "models" | "usage"): Promise<{ ok: true }>;
-      communityThread(input?: { page?: number }): Promise<CommunityThread>;
-      communitySubmit(input: {
-        rating: number;
-        content: string;
-      }): Promise<CommunityThread>;
-      communityHelpful(input: {
-        reviewId: string;
-      }): Promise<{ review: CommunityReview | null }>;
-      communityDelete(input: { reviewId: string }): Promise<CommunityThread>;
-      communityOpenApp(): Promise<{ ok: true }>;
-      communityOpenMarket(): Promise<{ ok: true }>;
+      openSourceThread(input?: { page?: number; size?: number }): Promise<OpenSourceThread>;
+      openSourceSubmit(input: {
+        body: string;
+        parentCommentId?: string;
+      }): Promise<OpenSourceThread>;
+      openSourceDelete(input: { commentId: string }): Promise<OpenSourceThread>;
+      openSourceOpen(input: {
+        target?: OpenSourceOpenTarget;
+        url?: string;
+      }): Promise<{ ok: true; url: string }>;
       sharedServersList(input?: {
         q?: string;
         sort?: SharedServerSort;

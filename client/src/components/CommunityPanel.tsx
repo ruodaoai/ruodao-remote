@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { AssistantController } from "../hooks/useAssistant";
-import type { CommunityController } from "../hooks/useCommunity";
-import type { CommunityReview } from "../types";
+import type { OpenSourceController } from "../hooks/useOpenSource";
+import type { OpenSourceComment } from "../types";
+import { commentPlainText, parseCommentBody } from "../lib/comment-body";
 import {
   AlertIcon,
+  BookIcon,
   ChatIcon,
-  CheckIcon,
   ChevronDownIcon,
+  DownloadIcon,
   EyeIcon,
   EyeOffIcon,
   LinkIcon,
@@ -14,7 +16,6 @@ import {
   RefreshIcon,
   SendIcon,
   ShieldIcon,
-  StarIcon,
   ThumbUpIcon,
   UserIcon,
 } from "./icons";
@@ -22,13 +23,11 @@ import { InlineAlert } from "./ui";
 
 import { t, tf } from "../i18n";
 
-
 interface CommunityPanelProps {
   assistant: AssistantController;
-  community: CommunityController;
+  openSource: OpenSourceController;
 }
 
-const RATING_LABELS = ["", t("很不满意"), t("不太满意"), t("一般"), t("比较满意"), t("非常满意")];
 const CONTENT_LIMIT = 1000;
 
 function formatAgo(value: string): string {
@@ -46,111 +45,77 @@ function formatAgo(value: string): string {
   ).padStart(2, "0")}`;
 }
 
-function StarRow({ value, size = 14 }: { value: number; size?: number }) {
-  const rounded = Math.round(value);
+/** 评论正文：只渲染白名单节点，链接交给主进程用系统浏览器打开。 */
+function CommentBody({ html, onOpenLink }: { html: string; onOpenLink: (url: string) => void }) {
+  const nodes = parseCommentBody(html);
+  if (nodes.length === 0) {
+    return <p className="community-review-text muted">{t("（空评论）")}</p>;
+  }
   return (
-    <span
-      className="community-stars"
-      aria-label={value > 0 ? tf("{0} 星", value.toFixed(1)) : t("尚未评分")}
-    >
-      {[1, 2, 3, 4, 5].map((star) => (
-        <StarIcon
-          key={star}
-          size={size}
-          filled={star <= rounded}
-          className={star <= rounded ? "star-on" : "star-off"}
-        />
-      ))}
-    </span>
+    <p className="community-review-text">
+      {nodes.map((node, index) => {
+        if (node.kind === "break") return <br key={index} />;
+        if (node.kind === "strong") return <strong key={index}>{node.text}</strong>;
+        if (node.kind === "em") return <em key={index}>{node.text}</em>;
+        if (node.kind === "code") return <code key={index}>{node.text}</code>;
+        if (node.kind === "link") {
+          return (
+            <button
+              key={index}
+              type="button"
+              className="community-inline-link"
+              title={node.href}
+              onClick={() => onOpenLink(node.href)}
+            >
+              {node.text}
+            </button>
+          );
+        }
+        return <span key={index}>{node.text}</span>;
+      })}
+    </p>
   );
 }
 
-function StarPicker({
-  value,
-  disabled,
-  onChange,
-}: {
-  value: number;
-  disabled?: boolean;
-  onChange: (value: number) => void;
-}) {
-  const [hover, setHover] = useState(0);
-  const shown = hover || value;
-  return (
-    <div className="community-star-picker">
-      <div
-        className="community-star-buttons"
-        role="radiogroup"
-        aria-label={t("评分")}
-        onMouseLeave={() => setHover(0)}
-      >
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            role="radio"
-            aria-checked={value === star}
-            aria-label={tf("{0} 星", star)}
-            data-testid={`community-star-${star}`}
-            className={`community-star-button${star <= shown ? " on" : ""}`}
-            disabled={disabled}
-            onMouseEnter={() => setHover(star)}
-            onFocus={() => setHover(star)}
-            onBlur={() => setHover(0)}
-            onClick={() => onChange(star)}
-          >
-            <StarIcon size={27} filled={star <= shown} />
-          </button>
-        ))}
-      </div>
-      <span className="community-star-label">{RATING_LABELS[value]}</span>
-    </div>
-  );
-}
-
-export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
+export function CommunityPanel({ assistant, openSource }: CommunityPanelProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [content, setContent] = useState("");
-  const [editing, setEditing] = useState(true);
+  const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const [replyDraft, setReplyDraft] = useState("");
   const authSeen = useRef<boolean | null>(null);
 
   const signedIn = Boolean(assistant.status?.authenticated);
   const expired = Boolean(
     assistant.status && !assistant.status.authenticated && assistant.status.sessionExpired,
   );
-  const thread = community.thread;
-  const myReview = thread?.myReview ?? null;
-  const isOwner = Boolean(thread?.isOwner);
+  const thread = openSource.thread;
+  const product = thread?.product ?? null;
   const items = thread?.items ?? [];
-  const summary = thread?.summary;
-  const ratingCount = summary?.ratingCount ?? 0;
-  const ratingAvg = summary?.ratingAvg ?? 0;
-  const distribution = summary?.distribution ?? [0, 0, 0, 0, 0];
-  const loadedCount = items.length + (myReview ? 1 : 0);
-  const hasMore = Boolean(thread && loadedCount < thread.total);
-  const appName = thread?.app.name || t("若道远程控制");
+  const identity = thread?.identity ?? null;
+  const total = thread?.total ?? 0;
+  const title = product?.title || t("若道远程");
+  const hasMore = Boolean(thread && items.length < total);
 
   useEffect(() => {
     void assistant.ensureLoaded();
-    void community.ensureLoaded();
-  }, [assistant.ensureLoaded, community.ensureLoaded]);
+    void openSource.ensureLoaded();
+  }, [assistant.ensureLoaded, openSource.ensureLoaded]);
 
+  // 登录状态变化时重新拉一次：评论的 owner 字段与昵称都跟令牌有关。
   useEffect(() => {
     const previous = authSeen.current;
     authSeen.current = signedIn;
-    if (previous !== null && previous === signedIn) return;
-    if (!community.thread || community.thread.signedIn === signedIn) return;
-    void community.refresh();
-  }, [signedIn, community.refresh, community.thread]);
+    if (previous === null || previous === signedIn) return;
+    void openSource.refresh();
+  }, [signedIn, openSource.refresh]);
 
   useEffect(() => {
-    if (community.error && /登录|过期/.test(community.error)) {
+    if (openSource.error && /登录|过期|权限/.test(openSource.error)) {
       void assistant.refresh();
     }
-  }, [community.error, assistant.refresh]);
+  }, [openSource.error, assistant.refresh]);
 
   useEffect(() => {
     if (signedIn) return;
@@ -158,35 +123,137 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
     if (saved) setEmail((current) => current || saved);
   }, [signedIn, assistant.status?.email]);
 
-  useEffect(() => {
-    const mine = community.thread?.myReview ?? null;
-    setRating(mine && mine.rating > 0 ? mine.rating : 5);
-    setContent(mine?.content ?? "");
-    setEditing(!mine);
-  }, [community.thread?.app.id, community.thread?.myReview?.id]);
-
   async function submitLogin(): Promise<void> {
     if (assistant.loginBusy) return;
     const ok = await assistant.login(email, password);
     if (ok) setPassword("");
   }
 
-  async function submitReview(): Promise<void> {
-    if (community.submitting) return;
-    const ok = await community.submit(rating, content.trim());
-    if (ok) setEditing(false);
+  async function submitComment(): Promise<void> {
+    const body = draft.trim();
+    if (!body || openSource.submitting) return;
+    const ok = await openSource.submit(body);
+    if (ok) setDraft("");
   }
 
-  async function deleteReview(review: CommunityReview): Promise<void> {
-    if (community.deletingId) return;
-    if (!window.confirm(t("删除后评分与文字会从应用中移除。确定删除这条留言？"))) return;
-    await community.remove(review.id);
+  async function submitReply(): Promise<void> {
+    const body = replyDraft.trim();
+    if (!body || !replyTo || openSource.submitting) return;
+    const ok = await openSource.submit(body, replyTo.id);
+    if (ok) {
+      setReplyDraft("");
+      setReplyTo(null);
+    }
   }
 
-  function cancelEdit(): void {
-    setRating(myReview && myReview.rating > 0 ? myReview.rating : 5);
-    setContent(myReview?.content ?? "");
-    setEditing(false);
+  async function deleteComment(comment: OpenSourceComment): Promise<void> {
+    if (openSource.deletingId) return;
+    const preview = commentPlainText(comment.body).slice(0, 40);
+    const message = tf("删除后这条评论会从若道社区页一起消失。确定删除「{0}」？", preview || t("这条评论"));
+    if (!window.confirm(message)) return;
+    await openSource.remove(comment.id);
+  }
+
+  function startReply(comment: OpenSourceComment): void {
+    setReplyTo({ id: comment.id, name: comment.authorName });
+    setReplyDraft("");
+  }
+
+  function renderComment(comment: OpenSourceComment, depth: number) {
+    const replying = replyTo?.id === comment.id;
+    return (
+      <article
+        className={`community-review community-comment${depth > 0 ? " reply" : ""}`}
+        key={comment.id}
+        style={depth > 0 ? { marginLeft: `${Math.min(2, depth) * 22}px` } : undefined}
+      >
+        <header>
+          <span className="community-avatar" aria-hidden>
+            {comment.authorName.trim().slice(0, 1) || t("用")}
+          </span>
+          <div className="community-review-who">
+            <strong>
+              {comment.authorName}
+              {comment.owner && (
+                <em className="community-verified">
+                  <UserIcon size={11} />
+                  {t("我")}
+                </em>
+              )}
+            </strong>
+            <span>
+              {comment.replyToName && <em>{tf("回复 {0}", comment.replyToName)} · </em>}
+              <span title={comment.createdAt}>{formatAgo(comment.createdAt)}</span>
+            </span>
+          </div>
+          <div className="community-comment-actions">
+            <button
+              type="button"
+              className="text-button"
+              disabled={!signedIn}
+              title={signedIn ? t("回复这条评论") : t("登录后才可回复")}
+              onClick={() => startReply(comment)}
+            >
+              <ChatIcon size={13} />
+              {t("回复")}
+            </button>
+            {comment.owner && (
+              <button
+                type="button"
+                className="text-button danger"
+                disabled={Boolean(openSource.deletingId)}
+                onClick={() => void deleteComment(comment)}
+              >
+                {openSource.deletingId === comment.id ? t("删除中…") : t("删除")}
+              </button>
+            )}
+          </div>
+        </header>
+
+        <CommentBody html={comment.body} onOpenLink={(url) => void openSource.openUrl(url)} />
+
+        {comment.replies.length > 0 && (
+          <div className="community-replies">
+            {comment.replies.map((reply) => renderComment(reply, depth + 1))}
+          </div>
+        )}
+
+        {replying && (
+          <div className="community-reply-form">
+            <span className="community-kicker">
+              <ChatIcon size={13} />
+              {tf("回复 {0}", replyTo?.name ?? "")}
+            </span>
+            <textarea
+              value={replyDraft}
+              rows={3}
+              maxLength={CONTENT_LIMIT}
+              placeholder={t("写下你的回复…")}
+              onChange={(event) => setReplyDraft(event.target.value)}
+            />
+            <div className="community-reply-actions">
+              <button
+                type="button"
+                className="button primary small"
+                disabled={openSource.submitting || !replyDraft.trim()}
+                onClick={() => void submitReply()}
+              >
+                {openSource.submitting ? <span className="spinner small" /> : <SendIcon size={14} />}
+                {openSource.submitting ? t("正在发布…") : t("发布回复")}
+              </button>
+              <button
+                type="button"
+                className="button ghost small"
+                disabled={openSource.submitting}
+                onClick={() => setReplyTo(null)}
+              >
+                {t("取消")}
+              </button>
+            </div>
+          </div>
+        )}
+      </article>
+    );
   }
 
   return (
@@ -197,110 +264,106 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
             <span className="eyebrow-icon">
               <ChatIcon size={14} />
             </span>
-            {t("社区留言")}
+            {t("若道开源社区")}
           </span>
-          <h1>{t("看看大家怎么用若道远程")}</h1>
+          <h1>{t("大家的评论都在若道")}</h1>
           <p>
-            {t("这里同步若道插件市场「")}{appName}{t("」的评论区。登录若道账号后，可以直接在客户端里留下体验、更新评分或回复讨论。")}
+            {t("这里和若道开源产品页是同一份评论数据：在客户端发的评论会立刻出现在站点上，站点上的回复也会同步到这里。")}
           </p>
         </div>
         <div className="community-heading-actions">
           <button
             type="button"
             className="button ghost small"
-            disabled={community.refreshing || community.loading}
-            onClick={() => void community.refresh()}
+            disabled={openSource.refreshing || openSource.loading}
+            onClick={() => void openSource.refresh()}
           >
-            {community.refreshing ? (
-              <span className="spinner small" />
-            ) : (
-              <RefreshIcon size={15} />
-            )}
+            {openSource.refreshing ? <span className="spinner small" /> : <RefreshIcon size={15} />}
             {t("刷新")}
           </button>
           <button
             type="button"
             className="button ghost small"
-            onClick={() => void community.openApp()}
+            onClick={() => void openSource.open("community")}
           >
             <LinkIcon size={15} />
-            {t("在若道查看")}
+            {t("在若道讨论")}
           </button>
         </div>
       </div>
 
-      {community.error && thread && <InlineAlert>{community.error}</InlineAlert>}
-      {community.notice && <InlineAlert kind="info">{community.notice}</InlineAlert>}
+      {openSource.error && thread && <InlineAlert>{openSource.error}</InlineAlert>}
+      {openSource.notice && <InlineAlert kind="info">{openSource.notice}</InlineAlert>}
 
       <div className="community-layout">
         <div className="community-main">
-          {community.loading && !thread ? (
+          {openSource.loading && !thread ? (
             <div className="community-loading">
               <span className="spinner large" />
-              <p>{t("正在读取若道插件市场的留言…")}</p>
+              <p>{t("正在读取若道社区…")}</p>
             </div>
           ) : !thread ? (
             <div className="community-empty large">
               <span className="community-empty-icon error">
                 <AlertIcon size={26} />
               </span>
-              <h2>{t("暂时读不到社区留言")}</h2>
-              <p>{community.error ?? t("社区留言暂时不可用，请稍后再试。")}</p>
+              <h2>{t("暂时读不到若道社区")}</h2>
+              <p>{openSource.error ?? t("若道社区暂时不可用，请稍后再试。")}</p>
               <div className="community-empty-actions">
                 <button
                   type="button"
                   className="button primary"
-                  disabled={community.refreshing || community.loading}
-                  onClick={() => void community.refresh()}
+                  disabled={openSource.refreshing || openSource.loading}
+                  onClick={() => void openSource.refresh()}
                 >
-                  {community.refreshing ? (
-                    <span className="spinner" />
-                  ) : (
-                    <RefreshIcon size={16} />
-                  )}
+                  {openSource.refreshing ? <span className="spinner" /> : <RefreshIcon size={16} />}
                   {t("重新读取")}
                 </button>
                 <button
                   type="button"
                   className="button ghost"
-                  onClick={() => void community.openMarket()}
+                  onClick={() => void openSource.open("catalog")}
                 >
                   <LinkIcon size={16} />
-                  {t("打开插件市场")}
+                  {t("打开开源产品栏")}
                 </button>
               </div>
             </div>
           ) : (
             <>
-              <div className="community-summary">
-                <div className="community-score">
-                  <strong>{ratingCount > 0 ? ratingAvg.toFixed(1) : "—"}</strong>
-                  <StarRow value={ratingAvg} size={16} />
-                  <span>{ratingCount > 0 ? tf("{0} 条评分", ratingCount) : t("还没有评分")}</span>
-                </div>
-                <div className="community-bars">
-                  {[5, 4, 3, 2, 1].map((star) => {
-                    const count = distribution[star - 1] ?? 0;
-                    return (
-                      <div className="community-bar-row" key={star}>
-                        <span>{star} {t("星")}</span>
-                        <i>
-                          <b
-                            style={{
-                              width: `${Math.round((count / Math.max(1, ratingCount)) * 100)}%`,
-                            }}
-                          />
-                        </i>
-                        <em>{count}</em>
-                      </div>
-                    );
-                  })}
+              <div className="community-summary community-summary-stats">
+                <div className="community-stats">
+                  <div className="community-stat">
+                    <ChatIcon size={15} />
+                    <strong>{product?.commentCount ?? total}</strong>
+                    <span>{t("评论")}</span>
+                  </div>
+                  <div className="community-stat">
+                    <ThumbUpIcon size={15} />
+                    <strong>{product?.likeCount ?? 0}</strong>
+                    <span>{t("点赞")}</span>
+                  </div>
+                  <div className="community-stat">
+                    <ShieldIcon size={15} />
+                    <strong>{product?.version ? `v${product.version}` : "—"}</strong>
+                    <span>{t("当前版本")}</span>
+                  </div>
+                  <div className="community-stat">
+                    <RefreshIcon size={15} />
+                    <strong>{product?.updatedAt ? formatAgo(product.updatedAt) : "—"}</strong>
+                    <span>{t("最近更新")}</span>
+                  </div>
                 </div>
                 <div className="community-summary-note">
                   <ShieldIcon size={17} />
                   <div>
-                    <strong>{t("真实安装，真实体验")}</strong>
-                    <span>{t("“已安装”标记来自若道安装记录，评分会直接影响应用在插件市场的排序。")}</span>
+                    <strong>{t("数据来自若道公开接口")}</strong>
+                    <span>
+                      {tf(
+                        "评论数、点赞数与版本号都随 {0} 同步，客户端不做本地统计。",
+                        product?.communityUrl || "ruodao.com",
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -310,7 +373,9 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                   <div>
                     <ChatIcon size={16} />
                     <strong>{t("大家的讨论")}</strong>
-                    <span className="community-count">{thread.total} {t("条留言")}</span>
+                    <span className="community-count">
+                      {total} {t("条评论")}
+                    </span>
                   </div>
                   <span className="community-sort">{t("按最新排序")}</span>
                 </div>
@@ -320,78 +385,16 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                     <span className="community-empty-icon">
                       <ChatIcon size={24} />
                     </span>
-                    <h2>{t("还没有人留言")}</h2>
+                    <h2>{t("还没有人评论")}</h2>
                     <p>
                       {signedIn
-                        ? t("如果你已经用过若道远程控制，欢迎在右侧写下第一条经验或问题。")
-                        : t("登录若道账号后，可以在右侧写下第一条留言。")}
+                        ? t("你可以在右侧写下第一条评论：用过之后哪里顺手、哪里卡住，都值得说。")
+                        : t("用若道账号登录后，就可以在右侧写下第一条评论。")}
                     </p>
                   </div>
                 ) : (
                   <div className="community-review-list">
-                    {items.map((review) => (
-                      <article className="community-review" key={review.id}>
-                        <header>
-                          <span className="community-avatar" aria-hidden>
-                            {review.userLabel.trim().slice(0, 1) || t("用")}
-                          </span>
-                          <div className="community-review-who">
-                            <strong>
-                              {review.userLabel}
-                              {review.verified && (
-                                <em
-                                  className="community-verified"
-                                  title={t("评价者安装过该应用")}
-                                >
-                                  <CheckIcon size={11} />
-                                  {t("已安装")}
-                                </em>
-                              )}
-                            </strong>
-                            <span>
-                              <StarRow value={review.rating} size={13} />
-                              <span title={review.createdAt}>
-                                {formatAgo(review.createdAt)}
-                              </span>
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            className={`community-helpful${review.helpful ? " on" : ""}`}
-                            disabled={!signedIn || community.helpfulId === review.id}
-                            title={
-                              !signedIn
-                                ? t("登录后可标记这条留言有帮助")
-                                : review.helpful
-                                  ? t("取消标记")
-                                  : t("这条留言有帮助")
-                            }
-                            onClick={() => void community.markHelpful(review)}
-                          >
-                            {community.helpfulId === review.id ? (
-                              <span className="spinner small" />
-                            ) : (
-                              <ThumbUpIcon size={13} />
-                            )}
-                            <span>
-                              {review.helpfulCount > 0 ? review.helpfulCount : t("有帮助")}
-                            </span>
-                          </button>
-                        </header>
-                        <p className={`community-review-text${review.content ? "" : " muted"}`}>
-                          {review.content || t("只留下了评分。")}
-                        </p>
-                        {review.authorReply && (
-                          <div className="community-author-reply">
-                            <strong>
-                              <ShieldIcon size={12} />
-                              {t("作者回复")}
-                            </strong>
-                            <p>{review.authorReply.content}</p>
-                          </div>
-                        )}
-                      </article>
-                    ))}
+                    {items.map((comment) => renderComment(comment, 0))}
                   </div>
                 )}
 
@@ -399,15 +402,15 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                   <button
                     type="button"
                     className="button ghost wide community-load-more"
-                    disabled={community.loadingMore}
-                    onClick={() => void community.loadMore()}
+                    disabled={openSource.loadingMore}
+                    onClick={() => void openSource.loadMore()}
                   >
-                    {community.loadingMore ? (
+                    {openSource.loadingMore ? (
                       <span className="spinner small" />
                     ) : (
                       <ChevronDownIcon size={16} />
                     )}
-                    {community.loadingMore ? t("正在加载…") : t("加载更多留言")}
+                    {openSource.loadingMore ? t("正在加载…") : t("加载更多评论")}
                   </button>
                 )}
               </div>
@@ -434,10 +437,12 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
               </span>
               <h3>{t("登录后参与讨论")}</h3>
               <p>
-                {t("登录只用于向若道提交评论，留言会显示你的昵称，作者可以直接回复。同一个若道账号也会解锁共享服务器详情。")}
+                {t("评论要走若道统一身份，登录只用于发评论和认领自己的评论；同一个账号也解锁共享服务器详情与 AI 助手。")}
               </p>
               {expired && (
-                <InlineAlert kind="info">{t("登录已过期，请重新输入密码。远控连接不受影响。")}</InlineAlert>
+                <InlineAlert kind="info">
+                  {t("登录已过期，请重新输入密码。远控连接不受影响。")}
+                </InlineAlert>
               )}
               <label className="field">
                 <div className="field-label">
@@ -509,119 +514,44 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 </button>
               </div>
             </form>
-          ) : isOwner ? (
-            <div className="community-card community-owner-card">
-              <span className="community-owner-icon">
-                <ShieldIcon size={19} />
-              </span>
-              <h3>{t("这是你发布的应用")}</h3>
-              <p>
-                {t("创作者不能给自己的应用评分。你可以在左侧查看大家的反馈，并在若道应用详情页逐条回复。")}
-              </p>
-              <button
-                type="button"
-                className="button ghost small"
-                onClick={() => void community.openApp()}
-              >
-                <LinkIcon size={15} />
-                {t("在若道回复评论")}
-              </button>
-            </div>
           ) : (
             <section className="community-card community-composer">
               <div className="community-composer-head">
                 <div>
                   <span className="community-kicker">
-                    <ChatIcon size={15} /> {t("我的留言")}
+                    <ChatIcon size={15} />
+                    {identity?.displayName || assistant.status?.user?.displayName || t("若道账号")}
                   </span>
-                  <h3>{myReview ? t("我的评价") : t("写下我的使用感受")}</h3>
+                  <h3>{t("写一条评论")}</h3>
                 </div>
-                {myReview && !editing && (
-                  <div className="community-my-actions">
-                    <button
-                      type="button"
-                      className="text-button"
-                      onClick={() => setEditing(true)}
-                    >
-                      {t("编辑")}
-                    </button>
-                    <button
-                      type="button"
-                      className="text-button danger"
-                      disabled={Boolean(community.deletingId)}
-                      onClick={() => void deleteReview(myReview)}
-                    >
-                      {community.deletingId === myReview.id ? t("删除中…") : t("删除")}
-                    </button>
-                  </div>
-                )}
+                <span className="community-char-count">
+                  {draft.length} / {CONTENT_LIMIT}
+                </span>
               </div>
-
-              {myReview && !editing ? (
-                <div className="community-my-review">
-                  <div className="community-my-meta">
-                    <StarRow value={myReview.rating} size={16} />
-                    <span>{formatAgo(myReview.createdAt)}</span>
-                  </div>
-                  <p className={myReview.content ? undefined : "muted"}>
-                    {myReview.content || t("只留下了评分。")}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="community-field-label">{t("给")} {appName} {t("打分")}</div>
-                  <StarPicker
-                    value={rating}
-                    disabled={community.submitting}
-                    onChange={setRating}
-                  />
-                  <label className="community-textarea">
-                    <textarea
-                      data-testid="community-content"
-                      value={content}
-                      maxLength={CONTENT_LIMIT}
-                      rows={5}
-                      placeholder={t("这个应用帮你解决了什么问题？也可以写下遇到的问题或希望改进的地方。")}
-                      onChange={(event) => setContent(event.target.value)}
-                    />
-                    <span className="community-char-count">
-                      {content.length} / {CONTENT_LIMIT}
-                    </span>
-                  </label>
-                  <button
-                    type="button"
-                    className="button primary wide"
-                    data-testid="community-submit"
-                    disabled={community.submitting}
-                    onClick={() => void submitReview()}
-                  >
-                    {community.submitting ? (
-                      <span className="spinner" />
-                    ) : (
-                      <SendIcon size={16} />
-                    )}
-                    {community.submitting
-                      ? t("正在提交…")
-                      : myReview
-                        ? t("更新留言")
-                        : t("发布留言")}
-                  </button>
-                  {myReview && (
-                    <button
-                      type="button"
-                      className="button ghost wide"
-                      disabled={community.submitting}
-                      onClick={cancelEdit}
-                    >
-                      {t("取消编辑")}
-                    </button>
-                  )}
-                  <p className="community-composer-hint">
-                    <LockIcon size={13} />
-                    {t("评论会公开显示，请不要填写远控码、访问密钥或登录密码。")}
-                  </p>
-                </>
-              )}
+              <label className="community-textarea">
+                <textarea
+                  data-testid="community-content"
+                  value={draft}
+                  maxLength={CONTENT_LIMIT}
+                  rows={6}
+                  placeholder={t("这个工具帮你解决了什么问题？也可以写下遇到的问题或希望改进的地方。")}
+                  onChange={(event) => setDraft(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="button primary wide"
+                data-testid="community-submit"
+                disabled={openSource.submitting || !draft.trim()}
+                onClick={() => void submitComment()}
+              >
+                {openSource.submitting ? <span className="spinner" /> : <SendIcon size={16} />}
+                {openSource.submitting ? t("正在发布…") : t("发布评论")}
+              </button>
+              <p className="community-composer-hint">
+                <LockIcon size={13} />
+                {t("评论会公开显示，请不要填写远控码、访问密钥或登录密码。")}
+              </p>
             </section>
           )}
 
@@ -631,43 +561,66 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
                 <LinkIcon size={19} />
               </span>
               <div>
-                <strong>{appName}</strong>
+                <strong>{title}</strong>
                 <span>
-                  {thread?.app.source === "ecosystem"
-                    ? t("若道开放生态 · 评论区同步")
-                    : t("若道功能插件 · 评论区同步")}
+                  {product?.official ? t("若道官方 · 开源产品") : t("开源产品 · 社区共建")}
                 </span>
               </div>
             </div>
             <p>
-              {thread?.app.summary ||
+              {product?.summary ||
                 t("用远控码和访问密钥直连的桌面远程控制工具，免注册、不经过第三方中转。")}
             </p>
+            <dl className="community-meta-list">
+              <div>
+                <dt>{t("作者")}</dt>
+                <dd>{product?.authorDisplayName || "—"}</dd>
+              </div>
+              <div>
+                <dt>{t("协议")}</dt>
+                <dd>{product?.licenseName || "MIT"}</dd>
+              </div>
+              <div>
+                <dt>{t("版本")}</dt>
+                <dd>{product?.version ? `v${product.version}` : "—"}</dd>
+              </div>
+            </dl>
             <div className="community-app-actions">
               <button
                 type="button"
                 className="button ghost small"
-                onClick={() => void community.openApp()}
+                disabled={!product?.repositoryUrl}
+                onClick={() => void openSource.open("repository")}
               >
                 <LinkIcon size={15} />
-                {t("在若道查看")}
+                {t("代码仓库")}
               </button>
               <button
                 type="button"
                 className="button ghost small"
-                onClick={() => void community.openMarket()}
+                onClick={() => void openSource.open("docs")}
               >
-                {t("插件市场")}
+                <BookIcon size={15} />
+                {t("接入文档")}
+              </button>
+              <button
+                type="button"
+                className="button ghost small"
+                disabled={!product?.downloadUrl}
+                onClick={() => void openSource.open("download")}
+              >
+                <DownloadIcon size={15} />
+                {t("下载")}
               </button>
             </div>
             <ul className="community-rules">
               <li>
                 <EyeIcon size={13} />
-                {t("评论公开显示在若道应用详情页")}
+                {t("评论公开显示在若道开源产品页")}
               </li>
               <li>
                 <ChatIcon size={13} />
-                {t("作者回复会出现在留言下方")}
+                {t("回复会挂在评论下方，作者也能收到")}
               </li>
               <li>
                 <LockIcon size={13} />
@@ -683,7 +636,7 @@ export function CommunityPanel({ assistant, community }: CommunityPanelProps) {
           <ShieldIcon size={14} /> {t("登录令牌只保存在本机")}
         </span>
         <span>
-          <ChatIcon size={14} /> {t("留言来自若道插件市场评论区")}
+          <ChatIcon size={14} /> {t("评论来自若道开源社区，与站点共用一份数据")}
         </span>
         <span>
           <LockIcon size={14} /> {t("评论公开可见，注意保护敏感信息")}

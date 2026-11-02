@@ -6,10 +6,11 @@
 
 [![Release](https://img.shields.io/github/v/release/ruodaoai/ruodao-remote?label=release)](https://github.com/ruodaoai/ruodao-remote/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078d4.svg)](#系统要求与已知限制)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20%C2%B7%20macOS%20x64%2Farm64-0078d4.svg)](#系统要求与已知限制)
 [![CI](https://github.com/ruodaoai/ruodao-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/ruodaoai/ruodao-remote/actions/workflows/ci.yml)
 
 [**下载 Windows 版**](https://github.com/ruodaoai/ruodao-remote/releases/latest) ·
+[**下载 macOS 版**](https://github.com/ruodaoai/ruodao-remote/releases/latest) ·
 [服务端部署包](https://github.com/ruodaoai/ruodao-remote/releases/latest/download/ruodao-remote-server.zip) ·
 [快速开始](docs/快速开始.md) ·
 [服务端部署](docs/服务端部署.md) ·
@@ -30,7 +31,7 @@
 | **共享服务器目录** | 「共享服务器」页汇总社区公开分享的信令服务器：按在线、延迟与有效期排序，一键把地址和邀请码写入本机设置；也支持发布自己的服务器、更新信息、下架与举报。 |
 | **中英文界面** | 界面内置简体中文与英文，可在「设置 → 语言」随时切换；首次启动跟随系统语言。平台文案、使用指南、错误提示与公告均同步翻译。 |
 | **遇到问题有兜底** | 内置分场景使用指南、基于当前状态的故障诊断，以及可选的 AI 助手（登录若道账号后使用，可附截图）。 |
-| **社区反馈** | 客户端内置「社区留言」，同步若道插件市场评论区的评分与留言；与共享服务器共用同一个若道账号登录态。 |
+| **若道社区** | 客户端内置「若道社区」页，按若道开源产品接入标准读取产品互动信息（评论数、点赞、版本、最近更新）与评论流；在客户端发的评论与 ruodao.com/open-source/ruodao-remote 完全同步，登录态与共享服务器共用。 |
 | **可持续维护** | 客户端与 Linux 服务端都支持从若道发布接口检查更新，发布包强制校验 SHA-256。客户端自动下载并在退出时安装；服务端由部署脚本安装的系统定时器在空闲时自动更新，失败自动回滚。 |
 
 ## 界面预览
@@ -55,6 +56,8 @@
 
 到 [Releases](https://github.com/ruodaoai/ruodao-remote/releases/latest) 下载 `RuodaoRemote-Setup-<版本>.exe`，双击安装。安装包当前未做代码签名，Windows SmartScreen 会提示「未知发布者」，选择「更多信息 → 仍要运行」即可；部分安全软件可能按启发式规则误报，请添加信任或只用安装版。
 
+macOS 用户下载 `RuodaoRemote-<版本>-arm64.dmg`（Apple Silicon）或 `-x64.dmg`（Intel），打开后把「若道远程」拖入「应用程序」。DMG 未签名，首次启动需在 Finder 中右键图标选择「打开」。
+
 ### 2. 被控端：开始被控
 
 打开客户端，停留在「本机被控」页，点击「开始被控」。页面会显示：
@@ -75,7 +78,7 @@
 「共享服务器」页是一个社区目录，数据来自若道云端接口，客户端只负责展示与跳转，不参与实际远控连接：
 
 - **共享列表**：展示名称、地区、配置说明、在线状态、可接入设备数、服务端版本与有效期；支持搜索、按推荐/延迟/即将到期排序、只看在线。离线或过期的服务器不能接入。
-- **登录后解锁**：未登录时只显示脱敏信息，并引导登录若道账号；登录态与「社区留言」共用。登录后才显示服务器地址与邀请码。
+- **登录后解锁**：未登录时只显示脱敏信息，并引导登录若道账号；登录态与「若道社区」共用。登录后才显示服务器地址与邀请码。
 - **一键使用**：点击「使用此服务器」会把地址与邀请码写入本机设置并跳到「控制远程设备」，不需要手动抄写。
 - **我的分享**：发布自己的服务器（名称、地址、地区、配置、可接入设备数、邀请码、补充说明），发布后可更新信息或下架。
 - **举报**：对失效或违规的服务器提交报告，客户端会立即在本机隐藏该条目，等管理员复核。
@@ -123,7 +126,8 @@ sudo bash install.sh
 
 ## 系统要求与已知限制
 
-- 客户端：Windows 10 / 11 x64。被控端的键鼠注入依赖 Win32 `SendInput`，目前只有 Windows 可用。
+- 客户端：Windows 10 / 11 x64，或 macOS 12+（Intel / Apple Silicon）。macOS 版目前只作为主控端使用。
+- 被控端的键鼠注入依赖 Win32 `SendInput`，目前只有 Windows 可用。
 - 服务端：Linux + systemd（Ubuntu 22.04+ / Debian 12+ 最佳），或使用客户端内置的 Windows 本机服务端。
 - 当前只采集主显示器；不支持多屏切换、`Ctrl+Alt+Del`、UAC 安全桌面和锁屏界面。
 - 剪贴板同步只支持纯文本（单条上限 64 KB），默认关闭，需要双方开启。
